@@ -1,0 +1,15 @@
+{
+  "integrated_ui.gui.open_backpack": "Open Backpack",
+  "integrated_ui.gui.previous_backpack": "Previous Backpack",
+  "integrated_ui.gui.next_backpack": "Next Backpack",
+  "integrated_ui.gui.curios": "Curios",
+  "integrated_ui.gui.accessories": "Accessories",
+  "integrated_ui.gui.open_accessories": "Open Accessories",
+  "integrated_ui.gui.show_panel": "Show %s",
+  "integrated_ui.gui.hide_panel": "Hide %s",
+  "integrated_ui.gui.show_unused_slots": "Show Unused Slots",
+  "integrated_ui.gui.hide_unused_slots": "Hide Unused Slots",
+  "integrated_ui.configuration.replaceInventoryScreen": "Backpack In Inventory",
+  "integrated_ui.configuration.maxVisibleRows": "Max Visible Backpack Rows",
+  "integrated_ui.configuration.equipmentPanelOpenByDefault": "Equipment Panel Open By Default"
+}

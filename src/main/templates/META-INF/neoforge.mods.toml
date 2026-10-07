@@ -1,0 +1,74 @@
+modLoader="javafml"
+loaderVersion="[4,)"
+license="${mod_license}"
+
+[[mods]]
+modId="${mod_id}"
+version="${mod_version}"
+displayName="${mod_name}"
+authors="${mod_authors}"
+credits="Design derived from the Quark backpack by Vazkii, WireSegal, MCVinnyq and Sully. Backpacked by MrCrayfish."
+description='''${mod_description}'''
+
+[[mixins]]
+config="${mod_id}.mixins.json"
+
+[[accessTransformers]]
+file="META-INF/accesstransformer.cfg"
+
+[[dependencies.${mod_id}]]
+    modId="neoforge"
+    type="required"
+    versionRange="${neo_version_range}"
+    ordering="NONE"
+    side="BOTH"
+
+[[dependencies.${mod_id}]]
+    modId="minecraft"
+    type="required"
+    versionRange="${minecraft_version_range}"
+    ordering="NONE"
+    side="BOTH"
+
+[[dependencies.${mod_id}]]
+    modId="backpacked"
+    type="required"
+    versionRange="[3.0.5,)"
+    ordering="AFTER"
+    side="BOTH"
+
+[[dependencies.${mod_id}]]
+    modId="framework"
+    type="required"
+    versionRange="[0.13.10,)"
+    ordering="AFTER"
+    side="BOTH"
+
+# Required as attribution: this mod's design is derived from Quark's backpack.
+[[dependencies.${mod_id}]]
+    modId="quark"
+    type="required"
+    versionRange="*"
+    ordering="AFTER"
+    side="BOTH"
+
+[[dependencies.${mod_id}]]
+    modId="zeta"
+    type="required"
+    versionRange="*"
+    ordering="AFTER"
+    side="BOTH"
+
+[[dependencies.${mod_id}]]
+    modId="curios"
+    type="optional"
+    versionRange="[9.0.0,)"
+    ordering="AFTER"
+    side="BOTH"
+
+[[dependencies.${mod_id}]]
+    modId="accessories"
+    type="optional"
+    versionRange="[1.1.0-beta.1,)"
+    ordering="AFTER"
+    side="BOTH"
