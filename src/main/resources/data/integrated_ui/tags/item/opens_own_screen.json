@@ -1,0 +1,10 @@
+{
+  "replace": false,
+  "values": [
+    "#c:shulker_boxes",
+    {
+      "id": "#supplementaries:sacks",
+      "required": false
+    }
+  ]
+}

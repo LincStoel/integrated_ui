@@ -30,8 +30,9 @@ public interface EquipmentBackend
     Component getPanelName();
 
     /**
-     * Client side: which of the menu's equipment slots should currently be shown. Computed once per call, so the
-     * returned filter can be applied to every slot cheaply.
+     * Both sides: which of the menu's equipment slots should currently be shown (the server uses it to keep
+     * quick-moves out of hidden slots). Computed once per call, so the returned filter can be applied to every slot
+     * cheaply.
      */
     default Predicate<Slot> createVisibilityFilter(Player player)
     {

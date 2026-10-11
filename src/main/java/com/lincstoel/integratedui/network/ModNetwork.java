@@ -9,9 +9,14 @@ public final class ModNetwork
 
     public static void register(RegisterPayloadHandlersEvent event)
     {
-        PayloadRegistrar registrar = event.registrar("1");
-        registrar.playToServer(OpenBackpackInventoryPayload.TYPE, OpenBackpackInventoryPayload.STREAM_CODEC, OpenBackpackInventoryPayload::handle);
-        registrar.playToServer(RenameBackpackPayload.TYPE, RenameBackpackPayload.STREAM_CODEC, RenameBackpackPayload::handle);
-        registrar.playToClient(OpenVanillaInventoryPayload.TYPE, OpenVanillaInventoryPayload.STREAM_CODEC, OpenVanillaInventoryPayload::handle);
+        PayloadRegistrar registrar = event.registrar("9");
+        registrar.playToServer(OpenInventoryPayload.TYPE, OpenInventoryPayload.STREAM_CODEC, OpenInventoryPayload::handle);
+        registrar.playToServer(RenamePayload.TYPE, RenamePayload.STREAM_CODEC, RenamePayload::handle);
+        registrar.playToServer(OpenShulkerBoxPayload.TYPE, OpenShulkerBoxPayload.STREAM_CODEC, OpenShulkerBoxPayload::handle);
+        registrar.playToServer(OpenSpellBookPayload.TYPE, OpenSpellBookPayload.STREAM_CODEC, OpenSpellBookPayload::handle);
+        registrar.playToServer(OpenContainerItemPayload.TYPE, OpenContainerItemPayload.STREAM_CODEC, OpenContainerItemPayload::handle);
+        registrar.playToServer(CloseSpellBookPayload.TYPE, CloseSpellBookPayload.STREAM_CODEC, CloseSpellBookPayload::handle);
+        registrar.playToClient(SpellBookOpenedPayload.TYPE, SpellBookOpenedPayload.STREAM_CODEC, SpellBookOpenedPayload::handle);
+        registrar.playToClient(ContainerItemsPayload.TYPE, ContainerItemsPayload.STREAM_CODEC, ContainerItemsPayload::handle);
     }
 }

@@ -1,4 +1,4 @@
-package com.lincstoel.integratedui.menu;
+package com.lincstoel.integratedui.compat.backpacked;
 
 import com.mrcrayfish.backpacked.Config;
 import com.mrcrayfish.backpacked.common.CostModel;

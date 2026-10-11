@@ -74,8 +74,14 @@ public class CuriosBackend implements EquipmentBackend
     }
 
     @Override
+    public boolean hasFullScreen()
+    {
+        return true;
+    }
+
+    @Override
     public boolean openFullScreen()
     {
-        return false;
+        return CuriosClientAccess.openScreen();
     }
 }

@@ -11,8 +11,14 @@ public final class ModMenus
 {
     public static final DeferredRegister<MenuType<?>> REGISTER = DeferredRegister.create(Registries.MENU, IntegratedUI.MOD_ID);
 
-    public static final DeferredHolder<MenuType<?>, MenuType<BackpackInventoryMenu>> BACKPACK_INVENTORY =
-        REGISTER.register("backpack_inventory", () -> IMenuTypeExtension.create(BackpackInventoryMenu::fromNetwork));
+    public static final DeferredHolder<MenuType<?>, MenuType<IntegratedInventoryMenu>> INTEGRATED_INVENTORY =
+        REGISTER.register("integrated_inventory", () -> IMenuTypeExtension.create(IntegratedInventoryMenu::fromNetwork));
+
+    public static final DeferredHolder<MenuType<?>, MenuType<PortableShulkerBoxMenu>> PORTABLE_SHULKER_BOX =
+        REGISTER.register("portable_shulker_box", () -> IMenuTypeExtension.create(PortableShulkerBoxMenu::fromNetwork));
+
+    public static final DeferredHolder<MenuType<?>, MenuType<PortableChestMenu>> PORTABLE_CHEST =
+        REGISTER.register("portable_chest", () -> IMenuTypeExtension.create(PortableChestMenu::fromNetwork));
 
     private ModMenus() {}
 }

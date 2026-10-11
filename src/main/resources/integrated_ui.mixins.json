@@ -1,12 +1,17 @@
 {
-  "required": true,
+  "required": false,
   "minVersion": "0.8",
   "package": "com.lincstoel.integratedui.mixin",
+  "plugin": "com.lincstoel.integratedui.mixin.IntegratedUIMixinPlugin",
   "compatibilityLevel": "JAVA_21",
-  "mixins": [
-    "ZetaModuleMixin"
+  "mixins": [],
+  "client": [
+    "quark.BackpackModuleClientMixin",
+    "quark.BackpackModuleMixin",
+    "quark.InventoryButtonHandlerMixin",
+    "quark.QuarkGeneralConfigMixin"
   ],
   "injectors": {
-    "defaultRequire": 1
+    "defaultRequire": 0
   }
 }

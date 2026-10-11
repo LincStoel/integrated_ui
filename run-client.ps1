@@ -4,4 +4,7 @@
 $ErrorActionPreference = "Stop"
 Set-Location $PSScriptRoot
 
+#./gradlew syncClientMods -Pvanilla
+#./gradlew syncClientMods -PwithoutBackpacked
+
 .\gradlew.bat runClient

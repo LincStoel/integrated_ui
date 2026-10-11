@@ -1,4 +1,4 @@
-package com.lincstoel.integratedui.client;
+package com.lincstoel.integratedui.compat.backpacked;
 
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;

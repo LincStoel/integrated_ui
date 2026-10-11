@@ -1,7 +1,10 @@
 package com.lincstoel.integratedui.compat.accessories;
 
+import com.lincstoel.integratedui.IntegratedUI;
+import com.lincstoel.integratedui.compat.CompatGuard;
 import com.lincstoel.integratedui.compat.EquipmentBackend;
 import com.lincstoel.integratedui.compat.EquipmentGroup;
+import com.lincstoel.integratedui.compat.aether.AetherCompat;
 import io.wispforest.accessories.api.AccessoriesAPI;
 import io.wispforest.accessories.api.AccessoriesCapability;
 import io.wispforest.accessories.api.AccessoriesContainer;
@@ -27,12 +30,19 @@ import java.util.function.Predicate;
  * Builds the same accessory slots as Accessories' own screen (AccessoriesExperimentalMenu): one non-cosmetic
  * {@link AccessoriesInternalSlot} per slot of every slot type in the entity's valid slot groups, in group order.
  * Unused slot types are hidden using Accessories' own per-player "show unused slots" setting.
+ * <p>
+ * When the Aether shows accessories in its own menu, the panel is left out entirely (no groups, no buttons).
  */
 public class AccessoriesBackend implements EquipmentBackend
 {
     @Override
     public List<EquipmentGroup> collectGroups(Player player)
     {
+        // Decided by the server alone: the client builds its slots from the groups sent here
+        if(isReplacedByAether())
+        {
+            return List.of();
+        }
         AccessoriesCapability capability = AccessoriesCapability.get(player);
         if(capability == null)
         {
@@ -129,7 +139,12 @@ public class AccessoriesBackend implements EquipmentBackend
     @Override
     public boolean hasFullScreen()
     {
-        return true;
+        return !isReplacedByAether();
+    }
+
+    private static boolean isReplacedByAether()
+    {
+        return IntegratedUI.isAetherLoaded() && CompatGuard.test(CompatGuard.AETHER, AetherCompat::usesOwnAccessoriesMenu);
     }
 
     @Override
