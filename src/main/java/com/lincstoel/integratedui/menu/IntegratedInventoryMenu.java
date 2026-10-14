@@ -60,6 +60,8 @@ public class IntegratedInventoryMenu extends InventoryMenu
 
     private static final int BUTTON_EQUIPMENT_SHOWN = 0;
     private static final int BUTTON_EQUIPMENT_HIDDEN = 1;
+    private static final int BUTTON_BAND_SHOWN = 2;
+    private static final int BUTTON_BAND_HIDDEN = 3;
     /** The most ticks between two {@link #updateTargets}, for changes the inventory doesn't count (e.g. pickups, Curios). */
     private static final int UPDATE_INTERVAL = 10;
 
@@ -81,6 +83,8 @@ public class IntegratedInventoryMenu extends InventoryMenu
     private Boolean hadTargets;
     /** Whether the equipment panel is open on the client. Told by the client, see {@link #equipmentButton}. */
     private boolean equipmentShown = true;
+    /** Whether the band is open on the client. Told by the client, see {@link #bandButton}. */
+    private boolean bandShown = true;
     /** Server side: the player inventory's change count at the last {@link #updateTargets}, and the ticks since. */
     private int lastInventoryChange = -1;
     private int ticksSinceUpdate;
@@ -457,7 +461,7 @@ public class IntegratedInventoryMenu extends InventoryMenu
             }
             else if(index < HOTBAR_START)
             {
-                if(!moveEither(stack, () -> this.moveToBackpack(stack), () -> this.moveItemStackTo(stack, HOTBAR_START, HOTBAR_END, false)))
+                if(!moveEither(stack, () -> this.moveItemStackTo(stack, HOTBAR_START, HOTBAR_END, false), () -> this.moveToBackpack(stack)))
                 {
                     return ItemStack.EMPTY;
                 }
@@ -497,7 +501,7 @@ public class IntegratedInventoryMenu extends InventoryMenu
 
     private boolean moveToBackpack(ItemStack stack)
     {
-        return this.canMoveToBand() && this.moveItemStackTo(stack, BACKPACK_START, this.backpackEnd, false);
+        return this.bandShown && this.canMoveToBand() && this.moveItemStackTo(stack, BACKPACK_START, this.backpackEnd, false);
     }
 
     /**
@@ -537,12 +541,23 @@ public class IntegratedInventoryMenu extends InventoryMenu
         return shown ? BUTTON_EQUIPMENT_SHOWN : BUTTON_EQUIPMENT_HIDDEN;
     }
 
+    /** Like {@link #equipmentButton}, for whether the band is open, so nothing is quick-moved into a hidden band. */
+    public static int bandButton(boolean shown)
+    {
+        return shown ? BUTTON_BAND_SHOWN : BUTTON_BAND_HIDDEN;
+    }
+
     @Override
     public boolean clickMenuButton(Player player, int id)
     {
         if(id == BUTTON_EQUIPMENT_SHOWN || id == BUTTON_EQUIPMENT_HIDDEN)
         {
             this.equipmentShown = id == BUTTON_EQUIPMENT_SHOWN;
+            return true;
+        }
+        if(id == BUTTON_BAND_SHOWN || id == BUTTON_BAND_HIDDEN)
+        {
+            this.bandShown = id == BUTTON_BAND_SHOWN;
             return true;
         }
         return super.clickMenuButton(player, id);

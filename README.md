@@ -84,8 +84,11 @@ None of these are required. Each integration can be turned off in the config, wh
 | [Accessories](https://www.curseforge.com/minecraft/mc-mods/accessories) | 1.1.0-beta.53 | Both          | Accessories slots appear in the equipment panel, matching Accessories' own screen, with the unused-slots toggle and a button to open Accessories' screen. Accessories takes precedence over Curios. |
 | [Supplementaries](https://www.curseforge.com/minecraft/mc-mods/supplementaries) | 1.21.1-3.9.9 | Both          | Sacks open in Supplementaries' own sack screen, with the sack's slot locked, and closing it returns to the inventory. Sacks are also shown in the band through the general container item support. With this integration off, sacks are treated like any other container item. The safe is excluded from the band by default. |
 | [Ars Nouveau](https://www.curseforge.com/minecraft/mc-mods/ars-nouveau) | 5.13.2 | Both          | Right-clicking a spell book in the inventory with an empty cursor opens its spell crafting screen, from any container screen. The book is swapped into the main hand while the screen is open and swapped back when it closes or the player logs out. Closing the book returns to the inventory if it was opened from there. |
+| [Create](https://www.curseforge.com/minecraft/mc-mods/create) | 6.0.10 | Both          | Right-clicking a filter (list, attribute or package filter) in the inventory with an empty cursor opens its screen, from any container screen, and its tooltip says so. The filter is swapped into the main hand while the screen is open and swapped back when it closes or the player logs out. Closing the filter returns to the inventory if it was opened from there. |
 | [The Aether](https://www.curseforge.com/minecraft/mc-mods/aether) | 1.5.10 | Both          | Adds the Aether's accessories button (the cloud on the player portrait) to the integrated inventory, at the position set in the Aether's client config, and following the window when the recipe book moves it. If the Aether uses its own accessories menu instead of Accessories' default one, the equipment panel is left out. |
-| [JEI](https://www.curseforge.com/minecraft/mc-mods/jei) | 19.51.0 | Client        | JEI's overlays stay clear of the band tab, equipment panel and status effects. JEI's "+" button fills the 2x2 crafting grid, taking ingredients from the inventory and from the band (except from locked slots). The recipe book button is hidden, since JEI replaces it. |
+| [Field Guide](https://modrinth.com/mod/field-guide) | 1.21.0+1.21.1 | Client        | Adds a small button that opens the Field Guide to the column of buttons beside the equipment panel, below the Curios/Accessories button (or in its place without either mod). As with Field Guide's own inventory button, it does nothing if the guide can't be opened yet, such as when Field Guide's server config requires the item. |
+| [FTB Quests](https://www.curseforge.com/minecraft/mc-mods/ftb-quests-forge) | 2101.1.36 | Client        | Adds a small button that opens the quest book to the same column, below the Field Guide button (or in its place without Field Guide). |
+| [JEI](https://www.curseforge.com/minecraft/mc-mods/jei) | 19.51.0 | Client        | JEI's overlays stay clear of the band tab, equipment panel and status effects. JEI's "+" button fills the 2x2 crafting grid, taking ingredients from the inventory and from the band (except from locked slots). The recipe book button is hidden, since JEI replaces it. A button left of the equipment panel shows/hides JEI, and turns grey while it is hidden. |
 | [Mouse Tweaks](https://www.curseforge.com/minecraft/mc-mods/mouse-tweaks) | 2.26.1 | Client        | Mouse Tweaks is told which slots are visible, so it never moves items into band rows scrolled out of view, a collapsed equipment panel, or hidden slots. It fills slots in this order: inventory, band, crafting grid, equipment. When Mouse Tweaks' wheel tweak is on, the mouse wheel over a slot moves items, and the band and panel scroll from their edges instead. |
 
 ## Configuration
@@ -99,8 +102,11 @@ None of these are required. Each integration can be turned off in the config, wh
 | `equipmentPanelOpen` | `true` | Whether the equipment panel is open. Updated automatically when toggled in game. |
 | `rightClickOpensSpellBooks` | `true` | Right-clicking an Ars Nouveau spell book opens it. |
 | `rightClickOpensContainers` | `true` | Right-clicking a container item opens it in its own screen. |
+| `rightClickOpensFilters` | `true` | Right-clicking a Create filter opens it. |
 | `compat.jei` | `true` | JEI integration. |
 | `compat.aether` | `true` | Aether accessories button. |
+| `compat.fieldGuide` | `true` | Field Guide button. |
+| `compat.ftbQuests` | `true` | FTB Quests quest book button. |
 
 ### Server (`serverconfig/integrated_ui-server.toml`, per world, synced to clients)
 
@@ -121,6 +127,7 @@ Changes take effect the next time the inventory is opened.
 | `compat.accessories` | `true` | Accessories integration. |
 | `compat.supplementaries` | `true` | Open sacks in Supplementaries' screen. |
 | `compat.arsNouveau` | `true` | Ars Nouveau spell book integration. |
+| `compat.create` | `true` | Create filter integration. |
 
 Every option has a translated name, so config screen mods such as Configured show readable labels.
 

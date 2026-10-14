@@ -81,10 +81,14 @@ repositories {
         forRepository { maven("https://cursemaven.com") { name = "CurseMaven" } }
         filter { includeGroup("curse.maven") }
     }
+    exclusiveContent {
+        forRepository { maven("https://maven.ftb.dev/releases") { name = "FTB" } }
+        filter { includeGroup("dev.ftb.mods") }
+    }
 }
 
 // Run with -PwithoutBackpacked, -PwithoutQuark, -PwithoutCurios, -PwithoutAccessories, -PwithoutArsNouveau,
-// -PwithoutSupplementaries, -PwithoutAether, -PwithoutJei and/or -PwithoutMouseTweaks to test without those optional
+// -PwithoutCreate, -PwithoutSupplementaries, -PwithoutAether, -PwithoutFieldGuide, -PwithoutFtbQuests, -PwithoutJei and/or -PwithoutMouseTweaks to test without those optional
 // dependencies, or -Pvanilla to run with no third-party mods at all (they are still compiled against)
 val vanilla = providers.gradleProperty("vanilla").isPresent
 fun without(flag: String) = vanilla || providers.gradleProperty(flag).isPresent
@@ -99,8 +103,12 @@ val devMods = listOf(
     DevMod("withoutAccessories", listOf("maven.modrinth:accessories:Fb55Fgjz", "maven.modrinth:accessories-compat-layer:JMgVNypu",
         "maven.modrinth:owo-lib:NMCHU6DZ")), // 1.1.0-beta.53+1.21.1, compat layer 0.1.12, owo 0.12.15.5-beta.1+1.21
     DevMod("withoutArsNouveau", listOf("maven.modrinth:ars-nouveau:1VWyxABY", "maven.modrinth:geckolib:Grwn5rUB")), // 5.13.2, GeckoLib 4.9.3
+    DevMod("withoutCreate", listOf("maven.modrinth:create:UjX6dr61")), // 6.0.10
     DevMod("withoutSupplementaries", listOf("maven.modrinth:supplementaries:WrZWfRjP", "maven.modrinth:moonlight:YfHkk7hg")), // 1.21.1-3.9.9, Moonlight 1.21.1-3.7.1
     DevMod("withoutAether", listOf("curse.maven:aether-255308:7043502")), // 1.21.1-1.5.10
+    DevMod("withoutFieldGuide", listOf("maven.modrinth:field-guide:Qc9FRoEe")), // 1.21.0+1.21.1
+    DevMod("withoutFtbQuests", listOf("dev.ftb.mods:ftb-quests-neoforge:2101.1.36", "dev.ftb.mods:ftb-library-neoforge:2101.1.37",
+        "dev.ftb.mods:ftb-teams-neoforge:2101.1.11", "maven.modrinth:architectury-api:ZxYGwlk0")), // 2101.1.36, FTB Library 2101.1.37, FTB Teams 2101.1.11, Architectury 13.0.8
     DevMod("withoutJei", listOf("maven.modrinth:jei:ufHUqt9b"), clientOnly = true), // 19.51.0.418
     DevMod("withoutMouseTweaks", listOf("maven.modrinth:mouse-tweaks:9I21YYxf"), clientOnly = true), // 2.26.1
 )

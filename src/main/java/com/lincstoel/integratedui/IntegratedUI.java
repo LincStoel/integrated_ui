@@ -1,10 +1,13 @@
 package com.lincstoel.integratedui;
 
 import com.lincstoel.integratedui.client.ContainerItemClient;
+import com.lincstoel.integratedui.client.CursorKeeper;
 import com.lincstoel.integratedui.compat.aether.AetherClient;
 import com.lincstoel.integratedui.compat.arsnouveau.ArsNouveauClient;
 import com.lincstoel.integratedui.compat.arsnouveau.ArsNouveauCompat;
 import com.lincstoel.integratedui.compat.CompatGuard;
+import com.lincstoel.integratedui.compat.create.CreateClient;
+import com.lincstoel.integratedui.compat.create.CreateCompat;
 import com.lincstoel.integratedui.compat.backpacked.BackpackedClient;
 import com.lincstoel.integratedui.compat.curios.CuriosEvents;
 import com.lincstoel.integratedui.compat.quark.QuarkClientCompat;
@@ -43,11 +46,14 @@ public class IntegratedUI
     private static final boolean QUARK_LOADED = LoadingModList.get().getModFileById("quark") != null;
     private static final boolean JEI_LOADED = LoadingModList.get().getModFileById("jei") != null;
     private static final boolean ARS_NOUVEAU_LOADED = LoadingModList.get().getModFileById("ars_nouveau") != null;
+    private static final boolean CREATE_LOADED = LoadingModList.get().getModFileById("create") != null;
     private static final boolean SUPPLEMENTARIES_LOADED = LoadingModList.get().getModFileById("supplementaries") != null;
     private static final boolean AETHER_LOADED = LoadingModList.get().getModFileById("aether") != null;
     private static final boolean CURIOS_LOADED = LoadingModList.get().getModFileById("curios") != null;
     private static final boolean ACCESSORIES_LOADED = LoadingModList.get().getModFileById("accessories") != null;
     private static final boolean MOUSE_TWEAKS_LOADED = LoadingModList.get().getModFileById("mousetweaks") != null;
+    private static final boolean FIELD_GUIDE_LOADED = LoadingModList.get().getModFileById("fieldguide") != null;
+    private static final boolean FTB_QUESTS_LOADED = LoadingModList.get().getModFileById("ftbquests") != null;
 
     public IntegratedUI(IEventBus modBus, ModContainer container)
     {
@@ -58,6 +64,7 @@ public class IntegratedUI
         if(FMLEnvironment.dist.isClient())
         {
             ContainerItemClient.register();
+            CursorKeeper.register();
             if(BACKPACKED_LOADED)
             {
                 BackpackedClient.register();
@@ -77,6 +84,14 @@ public class IntegratedUI
             if(FMLEnvironment.dist.isClient())
             {
                 ArsNouveauClient.register();
+            }
+        }
+        if(CREATE_LOADED)
+        {
+            CreateCompat.register();
+            if(FMLEnvironment.dist.isClient())
+            {
+                CreateClient.register();
             }
         }
         if(SUPPLEMENTARIES_LOADED)
@@ -111,6 +126,11 @@ public class IntegratedUI
         return ARS_NOUVEAU_LOADED;
     }
 
+    public static boolean isCreateLoaded()
+    {
+        return CREATE_LOADED;
+    }
+
     public static boolean isSupplementariesLoaded()
     {
         return SUPPLEMENTARIES_LOADED;
@@ -141,6 +161,16 @@ public class IntegratedUI
         return MOUSE_TWEAKS_LOADED;
     }
 
+    public static boolean isFieldGuideLoaded()
+    {
+        return FIELD_GUIDE_LOADED;
+    }
+
+    public static boolean isFtbQuestsLoaded()
+    {
+        return FTB_QUESTS_LOADED;
+    }
+
     // Whether a mod is installed and its integration turned on in the config (see ServerConfig and ClientConfig), and
     // still working (see CompatGuard). Without it, this mod acts as if that mod wasn't installed.
 
@@ -160,6 +190,12 @@ public class IntegratedUI
     public static boolean isArsNouveauEnabled()
     {
         return ARS_NOUVEAU_LOADED && ServerConfig.get(ServerConfig.ARS_NOUVEAU) && CompatGuard.isWorking(CompatGuard.ARS_NOUVEAU);
+    }
+
+    /** Whether Create filters can be opened from the inventory. */
+    public static boolean isCreateEnabled()
+    {
+        return CREATE_LOADED && ServerConfig.get(ServerConfig.CREATE) && CompatGuard.isWorking(CompatGuard.CREATE);
     }
 
     /** Whether sacks open in Supplementaries' sack screen. */
@@ -182,6 +218,18 @@ public class IntegratedUI
     public static boolean isAetherEnabled()
     {
         return AETHER_LOADED && ClientConfig.get(ClientConfig.AETHER) && CompatGuard.isWorking(CompatGuard.AETHER);
+    }
+
+    /** Client side: whether our inventory screens get a button that opens the Field Guide. */
+    public static boolean isFieldGuideEnabled()
+    {
+        return FIELD_GUIDE_LOADED && ClientConfig.get(ClientConfig.FIELD_GUIDE) && CompatGuard.isWorking(CompatGuard.FIELD_GUIDE);
+    }
+
+    /** Client side: whether our inventory screens get a button that opens the FTB Quests quest book. */
+    public static boolean isFtbQuestsEnabled()
+    {
+        return FTB_QUESTS_LOADED && ClientConfig.get(ClientConfig.FTB_QUESTS) && CompatGuard.isWorking(CompatGuard.FTB_QUESTS);
     }
 
     /** Client side: JEI replaces the recipe book, so our screens hide it when this is true. */

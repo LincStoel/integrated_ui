@@ -16,9 +16,11 @@ import com.lincstoel.integratedui.network.OpenInventoryPayload;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
+import net.minecraft.client.gui.screens.inventory.CreativeModeInventoryScreen;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.protocol.game.ServerboundContainerClosePacket;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.ChestMenu;
 import net.minecraft.world.inventory.ShulkerBoxMenu;
@@ -73,17 +75,35 @@ public final class ClientEvents
         handledScreen = null;
     }
 
-    /** Covers a vanilla inventory that was opened while it couldn't be replaced. */
+    /**
+     * Covers a vanilla inventory that was opened while it couldn't be replaced, and switches to the creative inventory
+     * when the player goes into creative with the integrated inventory open, as vanilla's inventory screen does.
+     */
     @SubscribeEvent
     public static void onClientTick(ClientTickEvent.Post event)
     {
         Minecraft mc = Minecraft.getInstance();
         Screen screen = mc.screen;
-        if(screen != null && screen != handledScreen && shouldReplace(screen))
+        if(screen instanceof IntegratedScreen && mc.player != null && mc.gameMode != null && mc.gameMode.hasInfiniteItems())
+        {
+            openCreativeInventory(mc, mc.player);
+        }
+        else if(screen != null && screen != handledScreen && shouldReplace(screen))
         {
             handledScreen = screen;
             requestInventory();
         }
+    }
+
+    /**
+     * Closes our menu on the server and goes straight to the creative inventory, which runs on the player's own
+     * inventory menu. Not through {@link LocalPlayer#closeContainer}, so the mouse isn't grabbed for a tick in between.
+     */
+    private static void openCreativeInventory(Minecraft mc, LocalPlayer player)
+    {
+        player.connection.send(new ServerboundContainerClosePacket(player.containerMenu.containerId));
+        player.containerMenu = player.inventoryMenu;
+        mc.setScreen(new CreativeModeInventoryScreen(player, player.connection.enabledFeatures(), mc.options.operatorItemsTab().get()));
     }
 
     public static void requestInventory()

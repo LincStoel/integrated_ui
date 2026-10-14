@@ -9,11 +9,12 @@ public final class ModNetwork
 
     public static void register(RegisterPayloadHandlersEvent event)
     {
-        PayloadRegistrar registrar = event.registrar("9");
+        PayloadRegistrar registrar = event.registrar("10");
         registrar.playToServer(OpenInventoryPayload.TYPE, OpenInventoryPayload.STREAM_CODEC, OpenInventoryPayload::handle);
         registrar.playToServer(RenamePayload.TYPE, RenamePayload.STREAM_CODEC, RenamePayload::handle);
         registrar.playToServer(OpenShulkerBoxPayload.TYPE, OpenShulkerBoxPayload.STREAM_CODEC, OpenShulkerBoxPayload::handle);
         registrar.playToServer(OpenSpellBookPayload.TYPE, OpenSpellBookPayload.STREAM_CODEC, OpenSpellBookPayload::handle);
+        registrar.playToServer(OpenFilterPayload.TYPE, OpenFilterPayload.STREAM_CODEC, OpenFilterPayload::handle);
         registrar.playToServer(OpenContainerItemPayload.TYPE, OpenContainerItemPayload.STREAM_CODEC, OpenContainerItemPayload::handle);
         registrar.playToServer(CloseSpellBookPayload.TYPE, CloseSpellBookPayload.STREAM_CODEC, CloseSpellBookPayload::handle);
         registrar.playToClient(SpellBookOpenedPayload.TYPE, SpellBookOpenedPayload.STREAM_CODEC, SpellBookOpenedPayload::handle);

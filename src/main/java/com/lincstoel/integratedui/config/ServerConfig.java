@@ -30,6 +30,7 @@ public final class ServerConfig
     public static final ModConfigSpec.BooleanValue ACCESSORIES;
     public static final ModConfigSpec.BooleanValue SUPPLEMENTARIES;
     public static final ModConfigSpec.BooleanValue ARS_NOUVEAU;
+    public static final ModConfigSpec.BooleanValue CREATE;
 
     static
     {
@@ -104,6 +105,11 @@ public final class ServerConfig
                 "(see also rightClickOpensSpellBooks in the client config).")
             .translation(ClientConfig.key("arsNouveau"))
             .define("arsNouveau", true);
+        CREATE = builder
+            .comment("Create: right-clicking a filter in the inventory opens its screen (see also rightClickOpensFilters in the",
+                "client config).")
+            .translation(ClientConfig.key("create"))
+            .define("create", true);
         builder.pop();
 
         SPEC = builder.build();

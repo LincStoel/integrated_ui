@@ -21,7 +21,11 @@ public final class CompatGuard
     public static final String ACCESSORIES = "accessories";
     public static final String SUPPLEMENTARIES = "supplementaries";
     public static final String ARS_NOUVEAU = "ars_nouveau";
+    public static final String CREATE = "create";
     public static final String AETHER = "aether";
+    public static final String FIELD_GUIDE = "fieldguide";
+    public static final String FTB_QUESTS = "ftbquests";
+    public static final String JEI = "jei";
 
     private static final Set<String> BROKEN = ConcurrentHashMap.newKeySet();
 

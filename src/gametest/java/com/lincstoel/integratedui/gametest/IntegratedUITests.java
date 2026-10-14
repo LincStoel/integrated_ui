@@ -152,6 +152,43 @@ public final class IntegratedUITests
     }
 
     @GameTest(template = EMPTY)
+    public static void quickMoveFromMainInventoryPrefersHotbar(GameTestHelper helper)
+    {
+        ServerPlayer player = mockPlayer(helper);
+        Inventory inventory = player.getInventory();
+        inventory.setItem(0, new ItemStack(Items.SHULKER_BOX));
+        inventory.setItem(9, new ItemStack(Items.DIRT, 64));
+        ShulkerInventoryMenu menu = openWithBand(helper, player);
+        // Main inventory slot 9 is menu slot 9
+        menu.quickMoveStack(player, 9);
+        menu.broadcastChanges();
+        helper.assertTrue(inventory.getItem(1).is(Items.DIRT) && inventory.getItem(1).getCount() == 64, "The dirt didn't go to the hotbar");
+        helper.assertTrue(menu.getSlot(IntegratedInventoryMenu.BACKPACK_START).getItem().isEmpty(), "The dirt went into the band");
+        helper.succeed();
+    }
+
+    @GameTest(template = EMPTY)
+    public static void quickMoveSkipsCollapsedBand(GameTestHelper helper)
+    {
+        ServerPlayer player = mockPlayer(helper);
+        Inventory inventory = player.getInventory();
+        inventory.setItem(0, new ItemStack(Items.SHULKER_BOX));
+        for(int i = 9; i < 36; i++)
+        {
+            inventory.setItem(i, new ItemStack(Items.STONE, 64));
+        }
+        inventory.setItem(1, new ItemStack(Items.DIRT, 64));
+        ShulkerInventoryMenu menu = openWithBand(helper, player);
+        menu.clickMenuButton(player, IntegratedInventoryMenu.bandButton(false));
+        // Hotbar slot 1 is menu slot 37; the main inventory is full, so only the band could take it
+        menu.quickMoveStack(player, 37);
+        menu.broadcastChanges();
+        helper.assertTrue(inventory.getItem(1).is(Items.DIRT) && inventory.getItem(1).getCount() == 64, "The dirt left the hotbar");
+        helper.assertTrue(menu.getSlot(IntegratedInventoryMenu.BACKPACK_START).getItem().isEmpty(), "The dirt went into the collapsed band");
+        helper.succeed();
+    }
+
+    @GameTest(template = EMPTY)
     public static void onlyItemsKeepingTheirContentsCount(GameTestHelper helper)
     {
         helper.assertTrue(ContainerItems.isContainerItem(new ItemStack(Items.SHULKER_BOX)), "A shulker box keeps its contents when broken");

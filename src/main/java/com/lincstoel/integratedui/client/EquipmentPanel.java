@@ -1,8 +1,12 @@
 package com.lincstoel.integratedui.client;
 
 import com.lincstoel.integratedui.IntegratedUI;
+import com.lincstoel.integratedui.compat.CompatGuard;
 import com.lincstoel.integratedui.compat.Equipment;
 import com.lincstoel.integratedui.compat.EquipmentBackend;
+import com.lincstoel.integratedui.compat.fieldguide.FieldGuideCompat;
+import com.lincstoel.integratedui.compat.ftbquests.FtbQuestsCompat;
+import com.lincstoel.integratedui.compat.jei.JeiOverlayToggle;
 import com.lincstoel.integratedui.config.ClientConfig;
 import com.lincstoel.integratedui.menu.IntegratedInventoryMenu;
 import net.minecraft.client.Minecraft;
@@ -23,7 +27,7 @@ import org.jetbrains.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
-import java.util.function.IntSupplier;
+import java.util.function.BooleanSupplier;
 import java.util.function.Predicate;
 
 /**
@@ -43,11 +47,17 @@ public class EquipmentPanel
         ResourceLocation.fromNamespaceAndPath("curios", "button_small_highlighted"));
     private static final ResourceLocation ICON_COLLAPSE = IntegratedUI.rl("arrow_right");
     private static final ResourceLocation ICON_EXPAND = IntegratedUI.rl("arrow_left");
+    private static final ResourceLocation ICON_FIELD_GUIDE = IntegratedUI.rl("field_guide");
+    private static final ResourceLocation ICON_QUEST_BOOK = IntegratedUI.rl("quest_book");
+    private static final ResourceLocation ICON_JEI = IntegratedUI.rl("jei");
+    private static final ResourceLocation ICON_JEI_HIDDEN = IntegratedUI.rl("jei_hidden");
 
     private static final int PADDING = 7;
     /** Top of the panel, relative to the inventory window. */
     private static final int TOP = 4;
     private static final int MAX_COLUMNS = 3;
+    /** The size of a cell in the column of buttons left of the panel. */
+    private static final int BUTTON_CELL = 12;
     private static final int SCROLLBAR_SIZE = 4;
 
     private final AbstractContainerScreen<?> screen;
@@ -65,9 +75,11 @@ public class EquipmentPanel
     /** The equipment slots currently shown in the panel (e.g. excluding unused Accessories slots). */
     private List<Slot> slots = List.of();
     @Nullable
-    private AbstractWidget unusedSlotsButton;
     /** While the open recipe book covers the panel's place, the panel and its buttons are hidden. */
     private boolean covered;
+    /** The button that shows/hides JEI, if there is one. */
+    @Nullable
+    private SpriteButton jeiToggle;
 
     public EquipmentPanel(AbstractContainerScreen<?> screen, IntegratedInventoryMenu menu)
     {
@@ -232,11 +244,14 @@ public class EquipmentPanel
     // ---------------------------------------------------------------------------------------------------------
     // Widgets
 
-    /** Creates the panel's buttons: show/hide toggle, then show/hide unused slots, then the Accessories screen. */
+    /**
+     * Creates the panel's buttons: show/hide toggle, then show/hide unused slots, then the Curios/Accessories screen,
+     * then the Field Guide, then the FTB Quests quest book, then JEI's show/hide toggle.
+     */
     public void init(Consumer<AbstractWidget> adder)
     {
         this.widgets.clear();
-        this.unusedSlotsButton = null;
+        this.jeiToggle = null;
         if(this.equipmentCount() > 0)
         {
             SpriteButton toggle = new SpriteButton(12, 12, () -> this.isShown() ? ICON_COLLAPSE : ICON_EXPAND, button -> {
@@ -248,7 +263,7 @@ public class EquipmentPanel
                 ButtonLabels.set(button, this.createToggleLabel());
             });
             ButtonLabels.set(toggle, this.createToggleLabel());
-            this.add(adder, toggle, () -> this.left() - 13, () -> TOP + 2);
+            this.add(adder, toggle, () -> true);
 
             if(this.equipment.hasUnusedSlots())
             {
@@ -259,61 +274,86 @@ public class EquipmentPanel
                     ButtonLabels.set(button, this.createUnusedSlotsLabel());
                 });
                 ButtonLabels.set(unused, this.createUnusedSlotsLabel());
-                this.add(adder, unused, () -> this.left() - 13, () -> TOP + 2 + 14);
-                this.unusedSlotsButton = unused;
+                this.add(adder, unused, this::isShown);
             }
         }
         if(this.equipment.hasFullScreen())
         {
             boolean curios = this.menu.getData().equipment().backend() == Equipment.Kind.CURIOS;
             Component name = Component.translatable(curios ? "integrated_ui.gui.open_curios" : "integrated_ui.gui.open_accessories");
-            AbstractWidget fullScreen = curios ? new ImageButton(8, 8, CURIOS_ICON, button -> this.equipment.openFullScreen(), name)
-                : new TextureButton(8, 8, ACCESSORIES_ICON, ACCESSORIES_ICON_HOVERED, button -> this.equipment.openFullScreen());
+            AbstractWidget fullScreen = curios ? new ImageButton(8, 8, CURIOS_ICON, button -> this.openFullScreen(), name)
+                : new TextureButton(8, 8, ACCESSORIES_ICON, ACCESSORIES_ICON_HOVERED, button -> this.openFullScreen());
             ButtonLabels.set(fullScreen, name);
-            this.add(adder, fullScreen, () -> this.left() - 11, this::fullScreenButtonY);
+            this.add(adder, fullScreen, () -> true);
+        }
+        if(IntegratedUI.isFieldGuideEnabled())
+        {
+            SpriteButton fieldGuide = new SpriteButton(12, 12, () -> ICON_FIELD_GUIDE, button -> FieldGuideCompat.openGuide());
+            ButtonLabels.set(fieldGuide, Component.translatable("integrated_ui.gui.open_field_guide"));
+            this.add(adder, fieldGuide, () -> true);
+        }
+        if(IntegratedUI.isFtbQuestsEnabled())
+        {
+            SpriteButton questBook = new SpriteButton(12, 12, () -> ICON_QUEST_BOOK, button -> FtbQuestsCompat.openQuestBook());
+            ButtonLabels.set(questBook, Component.translatable("integrated_ui.gui.open_quest_book"));
+            this.add(adder, questBook, () -> true);
+        }
+        if(IntegratedUI.isJeiEnabled() && CompatGuard.isWorking(CompatGuard.JEI))
+        {
+            // Greyed out while JEI is hidden; the icon is chosen each frame (and the label each tick), as JEI's own key can toggle it too
+            this.jeiToggle = new SpriteButton(12, 12, () -> JeiOverlayToggle.isShown() ? ICON_JEI : ICON_JEI_HIDDEN, button -> {
+                JeiOverlayToggle.toggle();
+                ButtonLabels.set(button, createJeiLabel());
+            });
+            ButtonLabels.set(this.jeiToggle, createJeiLabel());
+            this.add(adder, this.jeiToggle, () -> true);
         }
         this.syncShown();
     }
 
-    private void add(Consumer<AbstractWidget> adder, AbstractWidget widget, IntSupplier x, IntSupplier y)
+    /** Opens the backend's own screen, which the server opens, so the cursor would otherwise end up centred. */
+    private void openFullScreen()
+    {
+        CursorKeeper.keepForNextScreen();
+        this.equipment.openFullScreen();
+    }
+
+    private void add(Consumer<AbstractWidget> adder, AbstractWidget widget, BooleanSupplier present)
     {
         adder.accept(widget);
-        this.widgets.add(new Positioned(widget, x, y));
+        this.widgets.add(new Positioned(widget, present));
     }
 
-    /** Moves the panel's buttons to match the panel and the inventory window's current position. */
+    /**
+     * Moves the panel's buttons to match the panel and the inventory window's current position. The buttons form a
+     * column of {@link #BUTTON_CELL} cells left of the panel; buttons that are currently absent leave no gap, and
+     * smaller buttons are centred in their cell.
+     */
     public void positionWidgets()
     {
+        int x = this.screen.getGuiLeft() + this.left() - 13;
+        int y = this.screen.getGuiTop() + TOP + 2;
         for(Positioned positioned : this.widgets)
         {
-            positioned.widget.visible = !this.covered;
-            positioned.widget.setPosition(this.screen.getGuiLeft() + positioned.x.getAsInt(), this.screen.getGuiTop() + positioned.y.getAsInt());
+            AbstractWidget widget = positioned.widget;
+            widget.visible = !this.covered && positioned.present.getAsBoolean();
+            if(widget.visible)
+            {
+                widget.setPosition(x + (BUTTON_CELL - widget.getWidth()) / 2, y + (BUTTON_CELL - widget.getHeight()) / 2);
+                y += BUTTON_CELL + 2;
+            }
         }
-        if(this.unusedSlotsButton != null)
-        {
-            this.unusedSlotsButton.visible = this.isShown();
-        }
-    }
-
-    /** Below the panel toggle, and below the unused-slots toggle while that is shown. */
-    private int fullScreenButtonY()
-    {
-        int y = TOP + 2;
-        if(this.equipmentCount() > 0)
-        {
-            y += 14;
-        }
-        if(this.unusedSlotsButton != null && this.unusedSlotsButton.visible)
-        {
-            y += 14;
-        }
-        return y + 2;
     }
 
     private Component createToggleLabel()
     {
         String key = this.isShown() ? "integrated_ui.gui.hide_panel" : "integrated_ui.gui.show_panel";
         return Component.translatable(key, this.equipment.getPanelName());
+    }
+
+    private static Component createJeiLabel()
+    {
+        return Component.translatable(JeiOverlayToggle.isShown() ? "integrated_ui.gui.hide_jei" : "integrated_ui.gui.show_jei");
     }
 
     private Component createUnusedSlotsLabel()
@@ -324,6 +364,11 @@ public class EquipmentPanel
 
     public void tick()
     {
+        Component jeiLabel = this.jeiToggle != null ? createJeiLabel() : null;
+        if(jeiLabel != null && !jeiLabel.equals(this.jeiToggle.getMessage()))
+        {
+            ButtonLabels.set(this.jeiToggle, jeiLabel);
+        }
         // Which Accessories slots count as used depends on the items carried, so re-check periodically
         if(this.refreshTimer-- <= 0)
         {
@@ -522,15 +567,23 @@ public class EquipmentPanel
     @Nullable
     public Rect2i getExtraArea()
     {
-        if(this.equipmentCount() == 0 || this.covered)
+        if(this.widgets.isEmpty() || this.covered)
         {
             return null;
         }
+        int buttonsBottom = 0;
+        for(Positioned positioned : this.widgets)
+        {
+            if(positioned.widget.visible)
+            {
+                buttonsBottom = Math.max(buttonsBottom, positioned.widget.getBottom() - this.screen.getGuiTop());
+            }
+        }
         int x = this.left() - 14;
         int width = this.isDrawn() ? this.width + 14 : 14;
-        int height = Math.max(this.isDrawn() ? this.height() : 0, 44);
+        int height = Math.max(this.isDrawn() ? this.height() : 0, buttonsBottom + 2 - TOP);
         return new Rect2i(this.screen.getGuiLeft() + x, this.screen.getGuiTop() + TOP, width, height);
     }
 
-    private record Positioned(AbstractWidget widget, IntSupplier x, IntSupplier y) {}
+    private record Positioned(AbstractWidget widget, BooleanSupplier present) {}
 }

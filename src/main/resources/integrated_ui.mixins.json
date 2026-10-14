@@ -6,6 +6,7 @@
   "compatibilityLevel": "JAVA_21",
   "mixins": [],
   "client": [
+    "client.LocalPlayerMixin",
     "quark.BackpackModuleClientMixin",
     "quark.BackpackModuleMixin",
     "quark.InventoryButtonHandlerMixin",

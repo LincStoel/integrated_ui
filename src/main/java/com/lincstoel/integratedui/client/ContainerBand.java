@@ -48,6 +48,8 @@ public class ContainerBand
     private static final Component PREVIOUS = Component.translatable("integrated_ui.gui.previous");
     private static final Component NEXT = Component.translatable("integrated_ui.gui.next");
     private static final Component RENAME = Component.translatable("integrated_ui.gui.rename");
+    private static final ResourceLocation ICON_COLLAPSE = IntegratedUI.rl("band_collapse");
+    private static final ResourceLocation ICON_EXPAND = IntegratedUI.rl("band_expand");
 
     // Vanilla inventory texture geometry
     public static final int VANILLA_WIDTH = 176;
@@ -71,6 +73,9 @@ public class ContainerBand
     private static final int MAX_VISIBLE_COLUMNS = 9;
     private static final int BUTTON_SIZE = 12;
     private static final int RENAME_SIZE = 10;
+    private static final int TOGGLE_HEIGHT = 9;
+    /** The collapsed band: just a divider line, showing there is a band to open. */
+    private static final int COLLAPSED_HEIGHT = 4;
 
     private final AbstractContainerScreen<?> screen;
     private final IntegratedInventoryMenu menu;
@@ -87,6 +92,8 @@ public class ContainerBand
     @Nullable
     private EditBox renameBox;
 
+    /** Whether there is a band and it is open (not collapsed to a divider). Set by {@link #layout}. */
+    private boolean expanded;
     private int visibleColumns;
     private int visibleRows;
     private int height;
@@ -116,13 +123,22 @@ public class ContainerBand
     /** Lays the band out for the given screen height, moving the inventory slots below it down. */
     public void layout(int screenHeight)
     {
-        if(this.data.hasBand())
+        this.expanded = this.data.hasBand() && ClientConfig.get(ClientConfig.CONTAINER_BAND_OPEN);
+        if(this.expanded)
         {
-            this.gap = IntegratedUI.isQuarkEnabled() && CompatGuard.test(CompatGuard.QUARK, QuarkClientCompat::showsSortButton) ? SORT_BUTTON_GAP : 0;
+            this.gap = sortButtonGap();
             this.visibleColumns = Math.min(this.data.columns(), MAX_VISIBLE_COLUMNS);
             int rowsThatFit = Math.max(1, (screenHeight - VANILLA_HEIGHT - BAND_HEADER - BAND_BOTTOM - H_SCROLLBAR_SPACE - this.gap - 4) / 18);
             this.visibleRows = Mth.clamp(Math.min(this.data.rows(), ClientConfig.MAX_VISIBLE_ROWS.get()), 1, rowsThatFit);
             this.height = BAND_HEADER + this.visibleRows * 18 + (this.hasHorizontalScroll() ? H_SCROLLBAR_SPACE : 0) + BAND_BOTTOM;
+        }
+        else if(this.data.hasBand())
+        {
+            // Collapsed: no slots shown, only the divider
+            this.visibleColumns = 0;
+            this.visibleRows = 0;
+            this.height = COLLAPSED_HEIGHT;
+            this.gap = sortButtonGap();
         }
         else
         {
@@ -139,6 +155,11 @@ public class ContainerBand
         this.scrollColumn = Mth.clamp(this.scrollColumn, 0, this.maxScrollColumn());
         this.scrollRow = Mth.clamp(this.scrollRow, 0, this.maxScrollRow());
         this.applyScroll();
+    }
+
+    private static int sortButtonGap()
+    {
+        return IntegratedUI.isQuarkEnabled() && CompatGuard.test(CompatGuard.QUARK, QuarkClientCompat::showsSortButton) ? SORT_BUTTON_GAP : 0;
     }
 
     /** The height the band, and the gap below it, add to the inventory window. */
@@ -176,7 +197,8 @@ public class ContainerBand
     // Header widgets
 
     /**
-     * Creates the header's previous/next and rename buttons (the latter unless renaming is turned off). {@code
+     * Creates the button that opens and collapses the band, just above the header's right end, and, while the band is
+     * open, the header's previous/next and rename buttons (the latter unless renaming is turned off). {@code
      * extraButton}, if given, goes at the right end of the header. {@code onRename} handles the rename button; if
      * null, the title is edited in place instead.
      */
@@ -189,6 +211,16 @@ public class ContainerBand
         this.renameBox = null;
         if(!this.data.hasBand())
         {
+            return;
+        }
+
+        SpriteButton toggle = new SpriteButton(BUTTON_SIZE, TOGGLE_HEIGHT, () -> this.expanded ? ICON_COLLAPSE : ICON_EXPAND, button -> this.toggle());
+        ButtonLabels.set(toggle, Component.translatable(this.expanded ? "integrated_ui.gui.hide_band" : "integrated_ui.gui.show_band"));
+        this.add(adder, toggle, () -> HEADER_RIGHT - BUTTON_SIZE, () -> SPLIT_Y - TOGGLE_HEIGHT - 1);
+        this.syncShown();
+        if(!this.expanded)
+        {
+            this.extraButton = null;
             return;
         }
 
@@ -223,6 +255,35 @@ public class ContainerBand
             this.renameBox.setTextShadow(false);
             this.renameBox.setVisible(false);
             this.add(adder, this.renameBox, () -> TITLE_X, () -> SPLIT_Y + 5);
+        }
+    }
+
+    /** Opens or collapses the band, remembering it in the config, and lays the screen out again for the new height. */
+    private void toggle()
+    {
+        ClientConfig.CONTAINER_BAND_OPEN.set(!this.expanded);
+        ClientConfig.CONTAINER_BAND_OPEN.save();
+        // Deferred: this runs from the button's click, while the screen goes through the widgets it is about to replace
+        Minecraft mc = Minecraft.getInstance();
+        mc.tell(() -> {
+            if(mc.screen == this.screen)
+            {
+                this.screen.init(mc, this.screen.width, this.screen.height);
+            }
+        });
+    }
+
+    /**
+     * Tells the server whether the band is open, so nothing is quick-moved into it while it is hidden (see {@link
+     * IntegratedInventoryMenu#bandButton}).
+     */
+    private void syncShown()
+    {
+        Minecraft mc = Minecraft.getInstance();
+        int button = IntegratedInventoryMenu.bandButton(this.expanded);
+        if(mc.player != null && mc.gameMode != null && this.menu.clickMenuButton(mc.player, button))
+        {
+            mc.gameMode.handleInventoryButtonClick(this.menu.containerId, button);
         }
     }
 
@@ -333,7 +394,7 @@ public class ContainerBand
     public boolean navigate(Navigation navigation)
     {
         boolean possible = navigation == Navigation.PREVIOUS ? this.menu.hasPrevious() : this.menu.hasNext();
-        if(!this.data.hasBand() || this.isRenaming() || !possible)
+        if(!this.expanded || this.isRenaming() || !possible)
         {
             return false;
         }
@@ -405,7 +466,7 @@ public class ContainerBand
     /** Draws what sits behind the inventory window's edge: the vertical scrollbar's tab. */
     public void renderBehind(GuiGraphics graphics)
     {
-        if(this.data.hasBand() && this.hasVerticalScroll())
+        if(this.expanded && this.hasVerticalScroll())
         {
             int left = this.screen.getGuiLeft();
             int top = this.screen.getGuiTop();
@@ -425,8 +486,14 @@ public class ContainerBand
         graphics.blit(INVENTORY_TEXTURE, left, top, 0, 0, VANILLA_WIDTH, SPLIT_Y);
         graphics.blit(INVENTORY_TEXTURE, left, top + SPLIT_Y, VANILLA_WIDTH, this.getHeight(), 0, SPLIT_Y + 1, VANILLA_WIDTH, 1, 256, 256);
         graphics.blit(INVENTORY_TEXTURE, left, top + SPLIT_Y + this.getHeight(), 0, SPLIT_Y, VANILLA_WIDTH, VANILLA_HEIGHT - SPLIT_Y);
-        if(!this.data.hasBand())
+        if(!this.expanded)
         {
+            if(this.data.hasBand())
+            {
+                // An engraved line across the inventory, where the band would be
+                graphics.fill(left + 7, top + SPLIT_Y + 1, left + VANILLA_WIDTH - 7, top + SPLIT_Y + 2, 0xFF8B8B8B);
+                graphics.fill(left + 7, top + SPLIT_Y + 2, left + VANILLA_WIDTH - 7, top + SPLIT_Y + 3, 0xFFFFFFFF);
+            }
             return;
         }
 
@@ -480,7 +547,7 @@ public class ContainerBand
      */
     public void renderLabels(GuiGraphics graphics, Font font)
     {
-        if(!this.data.hasBand())
+        if(!this.expanded)
         {
             return;
         }
@@ -552,7 +619,7 @@ public class ContainerBand
     /** {@code step} is -1 to scroll up and 1 to scroll down. Returns true if the grid scrolled. */
     public boolean mouseScrolled(double mouseX, double mouseY, int step, boolean horizontal)
     {
-        if(step == 0 || !this.isOver(mouseX, mouseY))
+        if(step == 0 || !this.expanded || !this.isOver(mouseX, mouseY))
         {
             return false;
         }
@@ -580,7 +647,7 @@ public class ContainerBand
     /** How far the band sticks out past the window's right edge (and the 2 pixels vanilla leaves there): its scroll tab. */
     public int getRightOverhang()
     {
-        if(!this.data.hasBand() || !this.hasVerticalScroll())
+        if(!this.expanded || !this.hasVerticalScroll())
         {
             return 0;
         }
@@ -596,7 +663,7 @@ public class ContainerBand
 
     private boolean isOverScrollTab(double x, double y)
     {
-        return this.data.hasBand() && this.hasVerticalScroll() && contains(this.verticalScrollTab(), x, y);
+        return this.expanded && this.hasVerticalScroll() && contains(this.verticalScrollTab(), x, y);
     }
 
     private static boolean contains(Rect2i rect, double x, double y)
@@ -612,7 +679,7 @@ public class ContainerBand
 
     private boolean startScrollDrag(double mouseX, double mouseY)
     {
-        if(!this.data.hasBand())
+        if(!this.expanded)
         {
             return false;
         }
@@ -673,7 +740,7 @@ public class ContainerBand
     /** Adds the screen areas the band draws on outside the inventory window, for JEI exclusion. */
     public void addExtraAreas(List<Rect2i> areas)
     {
-        if(this.data.hasBand() && this.hasVerticalScroll())
+        if(this.expanded && this.hasVerticalScroll())
         {
             Rect2i tab = this.verticalScrollTab();
             areas.add(new Rect2i(this.screen.getGuiLeft() + tab.getX(), this.screen.getGuiTop() + tab.getY(), tab.getWidth(), tab.getHeight()));

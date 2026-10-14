@@ -84,6 +84,14 @@ file="META-INF/accesstransformer.cfg"
     ordering="AFTER"
     side="BOTH"
 
+# Optional: with it, filters can be opened from the inventory with a right click
+[[dependencies.${mod_id}]]
+    modId="create"
+    type="optional"
+    versionRange="[6.0.10,)"
+    ordering="AFTER"
+    side="BOTH"
+
 # Optional: with it, sacks can be opened from the inventory with a right click, and are shown in the band like shulker boxes
 [[dependencies.${mod_id}]]
     modId="supplementaries"
@@ -113,5 +121,21 @@ file="META-INF/accesstransformer.cfg"
     modId="mousetweaks"
     type="optional"
     versionRange="[2.26.1,)"
+    ordering="NONE"
+    side="CLIENT"
+
+# Optional, client only: with it, the inventory gets a button that opens the Field Guide
+[[dependencies.${mod_id}]]
+    modId="fieldguide"
+    type="optional"
+    versionRange="[1.21.0+1.21.1,)"
+    ordering="NONE"
+    side="CLIENT"
+
+# Optional, client only: with it, the inventory gets a button that opens the FTB Quests quest book
+[[dependencies.${mod_id}]]
+    modId="ftbquests"
+    type="optional"
+    versionRange="[2101.1.36,)"
     ordering="NONE"
     side="CLIENT"
