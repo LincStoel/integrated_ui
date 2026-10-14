@@ -2,6 +2,7 @@ package com.lincstoel.integratedui;
 
 import com.lincstoel.integratedui.client.ContainerItemClient;
 import com.lincstoel.integratedui.client.CursorKeeper;
+import com.lincstoel.integratedui.client.OpenFromInventory;
 import com.lincstoel.integratedui.compat.aether.AetherClient;
 import com.lincstoel.integratedui.compat.arsnouveau.ArsNouveauClient;
 import com.lincstoel.integratedui.compat.arsnouveau.ArsNouveauCompat;
@@ -16,6 +17,7 @@ import com.lincstoel.integratedui.compat.supplementaries.SupplementariesCompat;
 import com.lincstoel.integratedui.config.ClientConfig;
 import com.lincstoel.integratedui.config.ServerConfig;
 import com.lincstoel.integratedui.menu.ModMenus;
+import com.lincstoel.integratedui.menu.SuspendedMenus;
 import com.lincstoel.integratedui.network.ModNetwork;
 import com.mojang.logging.LogUtils;
 import net.minecraft.resources.ResourceLocation;
@@ -58,11 +60,13 @@ public class IntegratedUI
     public IntegratedUI(IEventBus modBus, ModContainer container)
     {
         ModMenus.REGISTER.register(modBus);
+        SuspendedMenus.register();
         modBus.addListener(ModNetwork::register);
         container.registerConfig(ModConfig.Type.CLIENT, ClientConfig.SPEC);
         container.registerConfig(ModConfig.Type.SERVER, ServerConfig.SPEC);
         if(FMLEnvironment.dist.isClient())
         {
+            OpenFromInventory.register();
             ContainerItemClient.register();
             CursorKeeper.register();
             if(BACKPACKED_LOADED)

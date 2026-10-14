@@ -1,6 +1,7 @@
 package com.lincstoel.integratedui.compat.arsnouveau;
 
 import com.hollingsworth.arsnouveau.common.items.SpellBook;
+import com.lincstoel.integratedui.menu.SuspendedMenus;
 import com.lincstoel.integratedui.network.SpellBookOpenedPayload;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
@@ -41,13 +42,19 @@ public final class ArsNouveauCompat
         {
             return;
         }
-        // The book's screen replaces whatever menu is open. Closing it may return crafting grid items to the
-        // inventory, so check the book again afterwards.
-        player.closeContainer();
-        if(!isBookAt(inventory, slot))
-        {
-            return;
-        }
+        // The book's screen replaces whatever menu is open, without closing its screen on the client first (see
+        // OpenFromInventory), and a container's menu is held to return to (see SuspendedMenus)
+        SuspendedMenus.open(player, () -> {
+            // Closing the open menu may have returned crafting grid items to the inventory
+            if(isBookAt(inventory, slot))
+            {
+                openBookAt(player, inventory, slot);
+            }
+        });
+    }
+
+    private static void openBookAt(ServerPlayer player, Inventory inventory, int slot)
+    {
         InteractionHand hand = InteractionHand.MAIN_HAND;
         if(slot == Inventory.SLOT_OFFHAND)
         {

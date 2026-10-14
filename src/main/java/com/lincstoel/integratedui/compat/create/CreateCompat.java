@@ -2,6 +2,7 @@ package com.lincstoel.integratedui.compat.create;
 
 import com.lincstoel.integratedui.compat.CompatGuard;
 import com.lincstoel.integratedui.menu.SeamlessMenuProvider;
+import com.lincstoel.integratedui.menu.SuspendedMenus;
 import com.simibubi.create.content.logistics.filter.AbstractFilterMenu;
 import com.simibubi.create.content.logistics.filter.FilterItem;
 import net.minecraft.server.level.ServerPlayer;
@@ -56,17 +57,19 @@ public final class CreateCompat
             return;
         }
         // The filter's screen replaces whatever menu is open, without closing its screen on the client (see
-        // SeamlessMenuProvider). Closing the menu may return crafting grid items to the inventory, so check the
-        // filter again afterwards.
-        if(player.containerMenu != player.inventoryMenu)
-        {
-            player.doCloseContainer();
-        }
-        SWAPS.remove(player.getUUID());
-        if(!isFilterAt(inventory, slot))
-        {
-            return;
-        }
+        // SeamlessMenuProvider), and a container's menu is held to return to (see SuspendedMenus)
+        SuspendedMenus.open(player, () -> {
+            SWAPS.remove(player.getUUID());
+            // Closing the open menu may have returned crafting grid items to the inventory
+            if(isFilterAt(inventory, slot))
+            {
+                openFilterAt(player, inventory, slot);
+            }
+        });
+    }
+
+    private static void openFilterAt(ServerPlayer player, Inventory inventory, int slot)
+    {
         Swap swap = null;
         if(slot != inventory.selected)
         {

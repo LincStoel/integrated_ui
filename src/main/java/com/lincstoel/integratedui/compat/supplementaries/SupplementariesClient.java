@@ -10,7 +10,6 @@ import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.Slot;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.neoforge.client.event.RegisterMenuScreensEvent;
-import org.lwjgl.glfw.GLFW;
 
 /**
  * Client side of showing a sack in Supplementaries' sack screen, see {@link SupplementariesCompat}. Only used when
@@ -32,7 +31,7 @@ public final class SupplementariesClient
             (menu, inventory, title) -> new PortableSackScreen((PortableSackMenu) menu, inventory, title));
     }
 
-    /** Supplementaries' sack screen, with the sack's own slot greyed out, returning to the inventory when closed. */
+    /** Supplementaries' sack screen, with the sack's own slot greyed out (returning to the inventory when closed: see OpenFromInventory). */
     private static class PortableSackScreen extends VariableSizeContainerScreen
     {
         private final PortableSackMenu sackMenu;
@@ -50,27 +49,6 @@ public final class SupplementariesClient
             if(this.sackMenu.isSackSlot(slot))
             {
                 PortableScreens.renderLockedSlot(graphics, slot);
-            }
-        }
-
-        @Override
-        public boolean keyPressed(int key, int scanCode, int modifiers)
-        {
-            // Supplementaries' screen closes straight away on escape, which would skip returning to the inventory
-            if(key == GLFW.GLFW_KEY_ESCAPE)
-            {
-                this.onClose();
-                return true;
-            }
-            return super.keyPressed(key, scanCode, modifiers);
-        }
-
-        @Override
-        public void onClose()
-        {
-            if(!PortableScreens.returnToInventory())
-            {
-                super.onClose();
             }
         }
     }

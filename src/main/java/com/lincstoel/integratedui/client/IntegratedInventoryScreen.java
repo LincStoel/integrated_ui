@@ -60,7 +60,7 @@ public class IntegratedInventoryScreen extends EffectRenderingInventoryScreen<In
         if(this.menu instanceof ShulkerInventoryMenu shulkerMenu && shulkerMenu.opensOwnScreen())
         {
             open = new ItemButton(12, () -> BUTTON_SPRITE, this.menu.getData()::icon, button -> {
-                PortableScreens.noteOpenedFrom(this);
+                OpenFromInventory.expectScreen(this);
                 PacketDistributor.sendToServer(OpenShulkerBoxPayload.INSTANCE);
             });
             ButtonLabels.set(open, Component.translatable("integrated_ui.gui.open_container", this.menu.getData().title()));

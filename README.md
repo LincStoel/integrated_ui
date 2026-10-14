@@ -56,8 +56,9 @@ A NeoForge mod for Minecraft 1.21.1 that adds backpacks, carried container items
   - Sacks: Supplementaries' sack screen.
   - Other items: a vanilla chest screen with as many rows as the item needs.
 - The item's own inventory slot is locked and shaded while its screen is open, so it can't be moved, dropped or swapped away. The screen closes if the item is lost anyway.
-- Closing the screen returns to the inventory if it was opened from there. If it was opened from another container, closing it returns to the world.
-- In the inventory, shulker boxes are left to Quark when Quark opens them itself.
+- Closing the screen returns to the screen it was opened from: the inventory, or another container such as a chest. That container stays open in the meantime (a chest keeps its lid open).
+- Switching screens is seamless: the world never shows in between and the cursor stays where it is. The same applies to Create filters and Ars Nouveau spell books, which open the same way.
+- In the inventory, shulker boxes open in Integrated UI's screen instead of Quark's held shulker box screen. Turn `compat.overrideQuarkShulkerBoxes` off in the client config to leave them to Quark.
 
 ### Equipment panel (Curios / Accessories)
 
@@ -83,8 +84,8 @@ None of these are required. Each integration can be turned off in the config, wh
 | [Curios API](https://www.curseforge.com/minecraft/mc-mods/curios) | 9.5.1 | Both          | Curios slots appear in the equipment panel, with a button to open Curios' own screen. The menu reopens when slot counts change. |
 | [Accessories](https://www.curseforge.com/minecraft/mc-mods/accessories) | 1.1.0-beta.53 | Both          | Accessories slots appear in the equipment panel, matching Accessories' own screen, with the unused-slots toggle and a button to open Accessories' screen. Accessories takes precedence over Curios. |
 | [Supplementaries](https://www.curseforge.com/minecraft/mc-mods/supplementaries) | 1.21.1-3.9.9 | Both          | Sacks open in Supplementaries' own sack screen, with the sack's slot locked, and closing it returns to the inventory. Sacks are also shown in the band through the general container item support. With this integration off, sacks are treated like any other container item. The safe is excluded from the band by default. |
-| [Ars Nouveau](https://www.curseforge.com/minecraft/mc-mods/ars-nouveau) | 5.13.2 | Both          | Right-clicking a spell book in the inventory with an empty cursor opens its spell crafting screen, from any container screen. The book is swapped into the main hand while the screen is open and swapped back when it closes or the player logs out. Closing the book returns to the inventory if it was opened from there. |
-| [Create](https://www.curseforge.com/minecraft/mc-mods/create) | 6.0.10 | Both          | Right-clicking a filter (list, attribute or package filter) in the inventory with an empty cursor opens its screen, from any container screen, and its tooltip says so. The filter is swapped into the main hand while the screen is open and swapped back when it closes or the player logs out. Closing the filter returns to the inventory if it was opened from there. |
+| [Ars Nouveau](https://www.curseforge.com/minecraft/mc-mods/ars-nouveau) | 5.13.2 | Both          | Right-clicking a spell book in the inventory with an empty cursor opens its spell crafting screen, from any container screen. The book is swapped into the main hand while the screen is open and swapped back when it closes or the player logs out. Closing the book returns to the screen it was opened from (the inventory or a container). |
+| [Create](https://www.curseforge.com/minecraft/mc-mods/create) | 6.0.10 | Both          | Right-clicking a filter (list, attribute or package filter) in the inventory with an empty cursor opens its screen, from any container screen, and its tooltip says so. The filter is swapped into the main hand while the screen is open and swapped back when it closes or the player logs out. Closing the filter returns to the screen it was opened from (the inventory or a container). |
 | [The Aether](https://www.curseforge.com/minecraft/mc-mods/aether) | 1.5.10 | Both          | Adds the Aether's accessories button (the cloud on the player portrait) to the integrated inventory, at the position set in the Aether's client config, and following the window when the recipe book moves it. If the Aether uses its own accessories menu instead of Accessories' default one, the equipment panel is left out. |
 | [Field Guide](https://modrinth.com/mod/field-guide) | 1.21.0+1.21.1 | Client        | Adds a small button that opens the Field Guide to the column of buttons beside the equipment panel, below the Curios/Accessories button (or in its place without either mod). As with Field Guide's own inventory button, it does nothing if the guide can't be opened yet, such as when Field Guide's server config requires the item. |
 | [FTB Quests](https://www.curseforge.com/minecraft/mc-mods/ftb-quests-forge) | 2101.1.36 | Client        | Adds a small button that opens the quest book to the same column, below the Field Guide button (or in its place without Field Guide). |
@@ -107,6 +108,7 @@ None of these are required. Each integration can be turned off in the config, wh
 | `compat.aether` | `true` | Aether accessories button. |
 | `compat.fieldGuide` | `true` | Field Guide button. |
 | `compat.ftbQuests` | `true` | FTB Quests quest book button. |
+| `compat.overrideQuarkShulkerBoxes` | `true` | Open shulker boxes in the inventory in Integrated UI's screen rather than Quark's. |
 
 ### Server (`serverconfig/integrated_ui-server.toml`, per world, synced to clients)
 

@@ -505,28 +505,31 @@ public final class ContainerItems
         }
         ItemStack carried = player.containerMenu.getCarried();
         player.containerMenu.setCarried(ItemStack.EMPTY);
-        switch(screen)
-        {
-            case SACK -> CompatGuard.run(CompatGuard.SUPPLEMENTARIES, () -> SupplementariesCompat.showSack(player, stack, slot, size));
-            case SHULKER_BOX -> {
-                ShulkerContainer container = new ShulkerContainer(player, stack, SHULKER_BOX_SIZE, SHULKER_BOX_SIZE);
-                player.openMenu(new SeamlessMenuProvider((id, inventory, p) -> new PortableShulkerBoxMenu(id, inventory, container), stack.getHoverName()),
-                    buf -> buf.writeVarInt(container.getInventorySlot()));
-                playSound(player, SoundEvents.SHULKER_BOX_OPEN);
+        // Over a container's screen, its menu is held to return to when this one closes (see SuspendedMenus)
+        SuspendedMenus.open(player, () -> {
+            switch(screen)
+            {
+                case SACK -> CompatGuard.run(CompatGuard.SUPPLEMENTARIES, () -> SupplementariesCompat.showSack(player, stack, slot, size));
+                case SHULKER_BOX -> {
+                    ShulkerContainer container = new ShulkerContainer(player, stack, SHULKER_BOX_SIZE, SHULKER_BOX_SIZE);
+                    player.openMenu(new SeamlessMenuProvider((id, inventory, p) -> new PortableShulkerBoxMenu(id, inventory, container), stack.getHoverName()),
+                        buf -> buf.writeVarInt(container.getInventorySlot()));
+                    playSound(player, SoundEvents.SHULKER_BOX_OPEN);
+                }
+                case CHEST -> {
+                    int rows = Mth.positiveCeilDiv(size, ShulkerContainer.COLUMNS);
+                    ShulkerContainer container = new ShulkerContainer(player, stack, rows * ShulkerContainer.COLUMNS, size);
+                    player.openMenu(new SeamlessMenuProvider((id, inventory, p) -> new PortableChestMenu(id, inventory, container, rows, size), stack.getHoverName()),
+                        buf -> {
+                            buf.writeVarInt(rows);
+                            buf.writeVarInt(size);
+                            buf.writeVarInt(container.getInventorySlot());
+                        });
+                    playSound(player, SoundEvents.CHEST_OPEN);
+                }
+                case NONE -> {}
             }
-            case CHEST -> {
-                int rows = Mth.positiveCeilDiv(size, ShulkerContainer.COLUMNS);
-                ShulkerContainer container = new ShulkerContainer(player, stack, rows * ShulkerContainer.COLUMNS, size);
-                player.openMenu(new SeamlessMenuProvider((id, inventory, p) -> new PortableChestMenu(id, inventory, container, rows, size), stack.getHoverName()),
-                    buf -> {
-                        buf.writeVarInt(rows);
-                        buf.writeVarInt(size);
-                        buf.writeVarInt(container.getInventorySlot());
-                    });
-                playSound(player, SoundEvents.CHEST_OPEN);
-            }
-            case NONE -> {}
-        }
+        });
         player.containerMenu.setCarried(carried);
         player.containerMenu.broadcastChanges();
     }

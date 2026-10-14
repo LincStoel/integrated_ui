@@ -7,7 +7,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.Slot;
 
-/** Vanilla's chest screen for a container item opened from the inventory, see {@link PortableScreens}. */
+/** Vanilla's chest screen for a container item opened from the inventory, see {@link PortableScreens} and {@link OpenFromInventory}. */
 public class PortableChestScreen extends ContainerScreen
 {
     private final PortableChestMenu portableMenu;
@@ -25,15 +25,6 @@ public class PortableChestScreen extends ContainerScreen
         if(this.portableMenu.isItemSlot(slot))
         {
             PortableScreens.renderLockedSlot(graphics, slot);
-        }
-    }
-
-    @Override
-    public void onClose()
-    {
-        if(!PortableScreens.returnToInventory())
-        {
-            super.onClose();
         }
     }
 }

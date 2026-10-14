@@ -23,6 +23,7 @@ public final class ClientConfig
     public static final ModConfigSpec.BooleanValue AETHER;
     public static final ModConfigSpec.BooleanValue FIELD_GUIDE;
     public static final ModConfigSpec.BooleanValue FTB_QUESTS;
+    public static final ModConfigSpec.BooleanValue OVERRIDE_QUARK_SHULKER_BOXES;
 
     static
     {
@@ -55,9 +56,9 @@ public final class ClientConfig
             .define("rightClickOpensSpellBooks", true);
         RIGHT_CLICK_OPENS_CONTAINERS = builder
             .comment("Right-clicking a container item in your inventory with an empty cursor opens it in its own screen, as Quark",
-                "does for shulker boxes. Works in any container screen (a chest's, say); closing it returns to your inventory",
-                "if you opened it from there. Applies to items in the integrated_ui:opens_own_screen tag (shulker boxes and",
-                "Supplementaries sacks by default); in the inventory, shulker boxes are left to Quark if it opens them itself.")
+                "does for shulker boxes. Works in any container screen (a chest's, say); closing it returns to that screen",
+                "(your inventory, or the chest). Applies to items in the integrated_ui:opens_own_screen tag (shulker boxes and",
+                "Supplementaries sacks by default). See also overrideQuarkShulkerBoxes.")
             .translation(key("rightClickOpensContainers"))
             .define("rightClickOpensContainers", true);
         RIGHT_CLICK_OPENS_FILTERS = builder
@@ -86,6 +87,12 @@ public final class ClientConfig
             .comment("FTB Quests: add a button that opens the quest book below the equipment panel's buttons.")
             .translation(key("ftbQuests"))
             .define("ftbQuests", true);
+        OVERRIDE_QUARK_SHULKER_BOXES = builder
+            .comment("Quark: open shulker boxes right-clicked in the inventory in Integrated UI's screen in place of Quark's held",
+                "shulker box screen, so the inventory doesn't flicker on opening and closing them (and the cursor stays put).",
+                "When off, Quark opens them itself, if its allowOpeningShulkerBoxes option is on.")
+            .translation(key("overrideQuarkShulkerBoxes"))
+            .define("overrideQuarkShulkerBoxes", true);
         builder.pop();
 
         SPEC = builder.build();
