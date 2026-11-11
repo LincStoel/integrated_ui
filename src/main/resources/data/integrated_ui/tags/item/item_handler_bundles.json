@@ -1,0 +1,13 @@
+{
+  "replace": false,
+  "values": [
+    {
+      "id": "ars_elemental:caster_bag",
+      "required": false
+    },
+    {
+      "id": "ars_elemental:curio_bag",
+      "required": false
+    }
+  ]
+}

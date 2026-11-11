@@ -4,8 +4,11 @@
   "package": "com.lincstoel.integratedui.mixin",
   "plugin": "com.lincstoel.integratedui.mixin.IntegratedUIMixinPlugin",
   "compatibilityLevel": "JAVA_21",
-  "mixins": [],
+  "mixins": [
+    "ServerPlayerMixin"
+  ],
   "client": [
+    "client.LocalPlayerMixin",
     "client.MinecraftMixin",
     "quark.BackpackModuleClientMixin",
     "quark.BackpackModuleMixin",

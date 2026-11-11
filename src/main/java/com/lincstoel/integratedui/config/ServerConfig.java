@@ -17,10 +17,14 @@ public final class ServerConfig
     public static final ModConfigSpec SPEC;
 
     public static final ModConfigSpec.BooleanValue CONTAINER_ITEMS_IN_BAND;
-    public static final ModConfigSpec.BooleanValue CONTAINER_ITEM_WHITELIST_ENABLED;
-    public static final ModConfigSpec.ConfigValue<List<? extends String>> CONTAINER_ITEM_WHITELIST;
+    public static final ModConfigSpec.BooleanValue CONTAINER_ITEM_LIST_IS_WHITELIST;
+    public static final ModConfigSpec.ConfigValue<List<? extends String>> CONTAINER_ITEM_LIST;
     public static final ModConfigSpec.IntValue IGNORE_CONTAINER_ITEMS_UP_TO_SLOTS;
     public static final ModConfigSpec.BooleanValue CONTAINER_ITEM_SCREENS;
+    public static final ModConfigSpec.BooleanValue BUNDLES_IN_BAND;
+    public static final ModConfigSpec.BooleanValue MOUNTS_IN_BAND;
+    public static final ModConfigSpec.BooleanValue MOUNT_LIST_IS_WHITELIST;
+    public static final ModConfigSpec.ConfigValue<List<? extends String>> MOUNT_LIST;
     public static final ModConfigSpec.BooleanValue RENAMING;
     public static final ModConfigSpec.BooleanValue EQUIPMENT_SLOTS;
 
@@ -31,6 +35,7 @@ public final class ServerConfig
     public static final ModConfigSpec.BooleanValue SUPPLEMENTARIES;
     public static final ModConfigSpec.BooleanValue ARS_NOUVEAU;
     public static final ModConfigSpec.BooleanValue CREATE;
+    public static final ModConfigSpec.BooleanValue DIESEL_GENERATORS;
 
     static
     {
@@ -43,21 +48,26 @@ public final class ServerConfig
                 "band above the main inventory.")
             .translation(ClientConfig.key("containerItemsInBand"))
             .define("containerItemsInBand", true);
-        CONTAINER_ITEM_WHITELIST_ENABLED = builder
-            .comment("Only show the container items listed in containerItemWhitelist in the band, in place of every container",
-                "item. The integrated_ui:band_excluded tag is ignored while this is on. Backpacked and Quark backpacks",
-                "aren't affected.")
-            .translation(ClientConfig.key("containerItemWhitelistEnabled"))
-            .define("containerItemWhitelistEnabled", false);
-        CONTAINER_ITEM_WHITELIST = builder
-            .comment("The container items shown in the band while containerItemWhitelistEnabled is on: item ids",
-                "(e.g. \"minecraft:shulker_box\") or item tags starting with # (e.g. \"#c:shulker_boxes\").")
-            .translation(ClientConfig.key("containerItemWhitelist"))
-            .defineListAllowEmpty("containerItemWhitelist", () -> List.of("#c:shulker_boxes"), () -> "",
-                ServerConfig::isItemOrTagId);
+        CONTAINER_ITEM_LIST_IS_WHITELIST = builder
+            .comment("How containerItemList is used. true: it is a whitelist, and only the container items on it are shown in",
+                "the band (the integrated_ui:band_excluded tag and ignoreContainerItemsUpToSlots are ignored). false: it is",
+                "a blacklist, and every container item found is shown except those on it. Backpacked and Quark backpacks",
+                "aren't affected either way.")
+            .translation(ClientConfig.key("containerItemListIsWhitelist"))
+            .define("containerItemListIsWhitelist", true);
+        CONTAINER_ITEM_LIST = builder
+            .comment("The container items whitelisted or blacklisted (see containerItemListIsWhitelist): item ids",
+                "(e.g. \"minecraft:shulker_box\") or item tags starting with # (e.g. \"#c:shulker_boxes\"). Items left out",
+                "aren't shown in the band or opened in a screen of their own. The server log lists every container item",
+                "found, and whether it is shown, when a world loads. By default it whitelists vanilla shulker boxes and",
+                "Supplementaries sacks (which takes in Supplementaries Squared's dyed sacks); a blacklist would usually",
+                "start out empty.")
+            .translation(ClientConfig.key("containerItemList"))
+            .defineListAllowEmpty("containerItemList", () -> List.of("#c:shulker_boxes", "#supplementaries:sacks"), () -> "",
+                ServerConfig::isIdOrTagId);
         IGNORE_CONTAINER_ITEMS_UP_TO_SLOTS = builder
             .comment("Container items with this many slots or fewer are left out of the band, and aren't opened in a screen of",
-                "their own, so small ones don't clutter it. 0 shows them all. Items on the whitelist are always shown.")
+                "their own, so small ones don't clutter it. 0 shows them all. Doesn't apply to whitelisted items.")
             .translation(ClientConfig.key("ignoreContainerItemsUpToSlots"))
             .defineInRange("ignoreContainerItemsUpToSlots", 1, 0, 256);
         CONTAINER_ITEM_SCREENS = builder
@@ -65,6 +75,29 @@ public final class ServerConfig
                 "by right-clicking them in the inventory (or any container screen) or with the button in the band header.")
             .translation(ClientConfig.key("containerItemScreens"))
             .define("containerItemScreens", true);
+        BUNDLES_IN_BAND = builder
+            .comment("Show a Bundles page in the band, with a slot for each bundle (or bundle-like item) carried in the",
+                "inventory or worn in a Curios/Accessories slot. Scroll over a slot to pick an item in the bundle, and",
+                "click to take it out or to put the held item in.")
+            .translation(ClientConfig.key("bundlesInBand"))
+            .define("bundlesInBand", true);
+        MOUNTS_IN_BAND = builder
+            .comment("Show a Mount page first in the band while riding something with an inventory or equipment (horses,",
+                "donkeys, llamas, camels, chest boats, modded mounts), in place of its own screen. The page has a button",
+                "to open that screen anyway.")
+            .translation(ClientConfig.key("mountsInBand"))
+            .define("mountsInBand", true);
+        MOUNT_LIST_IS_WHITELIST = builder
+            .comment("How mountList is used. true: it is a whitelist, and only the mounts on it get a Mount page (the",
+                "integrated_ui:mount_excluded entity type tag is ignored). false: it is a blacklist, and every mount gets",
+                "one except those on it or in that tag. Mounts left out keep their own screen.")
+            .translation(ClientConfig.key("mountListIsWhitelist"))
+            .define("mountListIsWhitelist", false);
+        MOUNT_LIST = builder
+            .comment("The mounts whitelisted or blacklisted (see mountListIsWhitelist): entity type ids",
+                "(e.g. \"minecraft:horse\") or entity type tags starting with # (e.g. \"#c:boats\").")
+            .translation(ClientConfig.key("mountList"))
+            .defineListAllowEmpty("mountList", () -> List.<String>of(), () -> "", ServerConfig::isIdOrTagId);
         RENAMING = builder
             .comment("Show the rename button in the band header, for renaming the shown backpack or container item.")
             .translation(ClientConfig.key("renaming"))
@@ -83,8 +116,8 @@ public final class ServerConfig
             .translation(ClientConfig.key("backpacked"))
             .define("backpacked", true);
         QUARK = builder
-            .comment("Quark: show the worn Quark backpack in the band in place of Quark's own backpack screen, and give the",
-                "integrated inventory Quark's inventory buttons and keybinds.")
+            .comment("Quark: show the worn Quark backpack in the band in place of Quark's own backpack screen, show seed",
+                "pouches on the Bundles page, and give the integrated inventory Quark's inventory buttons and keybinds.")
             .translation(ClientConfig.key("quark"))
             .define("quark", true);
         CURIOS = builder
@@ -110,6 +143,10 @@ public final class ServerConfig
                 "client config).")
             .translation(ClientConfig.key("create"))
             .define("create", true);
+        DIESEL_GENERATORS = builder
+            .comment("Create Diesel Generators: show track layers bags on the Bundles page.")
+            .translation(ClientConfig.key("dieselGenerators"))
+            .define("dieselGenerators", true);
         builder.pop();
 
         SPEC = builder.build();
@@ -117,7 +154,7 @@ public final class ServerConfig
 
     private ServerConfig() {}
 
-    private static boolean isItemOrTagId(Object value)
+    private static boolean isIdOrTagId(Object value)
     {
         if(!(value instanceof String id))
         {

@@ -5,6 +5,7 @@ import com.lincstoel.integratedui.compat.EquipmentGroup;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.Slot;
+import net.minecraft.world.item.ItemStack;
 import top.theillusivec4.curios.api.CuriosApi;
 import top.theillusivec4.curios.api.type.capability.ICuriosItemHandler;
 import top.theillusivec4.curios.api.type.inventory.ICurioStacksHandler;
@@ -14,6 +15,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
+import java.util.function.ObjIntConsumer;
 
 public class CuriosBackend implements EquipmentBackend
 {
@@ -47,6 +49,24 @@ public class CuriosBackend implements EquipmentBackend
                 else
                 {
                     adder.accept(new DisabledSlot());
+                }
+            }
+        }
+    }
+
+    @Override
+    public void forEachStack(Player player, List<EquipmentGroup> groups, ObjIntConsumer<ItemStack> visitor)
+    {
+        Map<String, ICurioStacksHandler> curios = getCurios(player);
+        int position = 0;
+        for(EquipmentGroup group : groups)
+        {
+            ICurioStacksHandler stacks = curios.get(group.id());
+            for(int i = 0; i < group.size(); i++, position++)
+            {
+                if(stacks != null && i < stacks.getStacks().getSlots())
+                {
+                    visitor.accept(stacks.getStacks().getStackInSlot(i), position);
                 }
             }
         }

@@ -39,7 +39,8 @@ import java.util.function.Predicate;
  * <pre>
  *   0        crafting result      5-8   armor          36-44 hotbar
  *   1-4      crafting grid        9-35  main inventory 45    offhand
- *   46..     band slots (none when the band is empty), then equipment slots
+ *   46..     any slots other mods add to every inventory menu (such as Vercte's Satchels), then the band
+ *            slots (none when the band is empty), then equipment slots
  * </pre>
  * This class has no Backpacked dependency: with nothing in the band it is used as is, a container item such as a
  * shulker box is shown by {@link ShulkerInventoryMenu}, a backpack by Backpacked's {@link BackpackedInventoryMenu}, and a worn
@@ -53,7 +54,8 @@ public class IntegratedInventoryMenu extends InventoryMenu
     public static final int HOTBAR_START = 36;
     public static final int HOTBAR_END = 45;
     public static final int OFFHAND_SLOT = 45;
-    public static final int BACKPACK_START = 46;
+    /** The first slot after vanilla's: where the band starts, unless other mods added slots of their own there. */
+    public static final int VANILLA_END = 46;
 
     /** Slots moved here are hidden: off screen and inactive. */
     public static final int HIDDEN = -10000;
@@ -68,6 +70,11 @@ public class IntegratedInventoryMenu extends InventoryMenu
     private final Player player;
     private final Container backpack;
     private final OpenData data;
+    /**
+     * Where the band's slots start: after vanilla's, and after any that other mods add to the end of every
+     * {@link InventoryMenu}'s constructor (as Vercte's Satchels does), so it can't be a constant.
+     */
+    private final int backpackStart;
     private final int backpackEnd;
     private final int equipmentStart;
     private final int equipmentEnd;
@@ -113,6 +120,7 @@ public class IntegratedInventoryMenu extends InventoryMenu
 
         checkContainerSize(backpack, data.bandSize());
         backpack.startOpen(this.player);
+        this.backpackStart = this.slots.size();
         for(int i = 0; i < data.bandSize(); i++)
         {
             this.addSlot(backpackSlots.create(backpack, i));
@@ -144,6 +152,8 @@ public class IntegratedInventoryMenu extends InventoryMenu
             case BACKPACK -> BackpackedInventoryMenu.fromNetwork(windowId, inventory, data, buf);
             case CONTAINER_ITEM -> ShulkerInventoryMenu.fromNetwork(windowId, inventory, data, buf);
             case QUARK_BACKPACK -> QuarkBackpackMenu.fromNetwork(windowId, inventory, data, buf);
+            case BUNDLES -> BundleInventoryMenu.fromNetwork(windowId, inventory, data, buf);
+            case MOUNT -> MountInventoryMenu.fromNetwork(windowId, inventory, data, buf);
             case NONE -> new IntegratedInventoryMenu(windowId, inventory, data);
         };
     }
@@ -243,6 +253,11 @@ public class IntegratedInventoryMenu extends InventoryMenu
     public int getBackpackIndex()
     {
         return this.data.backpackIndex();
+    }
+
+    public int getBackpackStart()
+    {
+        return this.backpackStart;
     }
 
     public int getBackpackEnd()
@@ -361,12 +376,22 @@ public class IntegratedInventoryMenu extends InventoryMenu
         return false;
     }
 
-    /** Client side: pushes the main inventory and hotbar down to make room for the backpack band. */
+    /**
+     * Client side: pushes the main inventory and hotbar down to make room for the backpack band, along with any slots
+     * other mods placed below the top of the main inventory (such as Satchels' slots under the hotbar).
+     */
     public void offsetInventorySlots(int offset)
     {
         for(int i = INV_START; i < HOTBAR_END; i++)
         {
             this.slots.get(i).y = this.vanillaSlotY[i] + offset;
+        }
+        for(int i = VANILLA_END; i < this.backpackStart; i++)
+        {
+            if(this.vanillaSlotY[i] >= this.vanillaSlotY[INV_START])
+            {
+                this.slots.get(i).y = this.vanillaSlotY[i] + offset;
+            }
         }
     }
 
@@ -376,7 +401,7 @@ public class IntegratedInventoryMenu extends InventoryMenu
         int columns = this.data.columns();
         for(int i = 0; i < this.data.bandSize(); i++)
         {
-            Slot slot = this.slots.get(BACKPACK_START + i);
+            Slot slot = this.slots.get(this.backpackStart + i);
             int column = i % columns - scrollColumn;
             int row = i / columns - scrollRow;
             boolean shown = column >= 0 && column < visibleColumns && row >= 0 && row < visibleRows;
@@ -412,12 +437,12 @@ public class IntegratedInventoryMenu extends InventoryMenu
         }
         ItemStack stack = slot.getItem();
         ItemStack original = stack.copy();
-        boolean fromBackpack = index >= BACKPACK_START && index < this.backpackEnd;
+        boolean fromBackpack = index >= this.backpackStart && index < this.backpackEnd;
 
         // Whatever doesn't fit where it goes first spills over into the next place (the band, mostly)
         if(index == RESULT_SLOT)
         {
-            if(!moveEither(stack, () -> this.moveItemStackTo(stack, INV_START, HOTBAR_END, true), () -> this.moveToBackpack(stack)))
+            if(!moveEither(stack, () -> this.moveItemStackTo(stack, INV_START, HOTBAR_END, true), () -> this.moveToBand(stack)))
             {
                 return ItemStack.EMPTY;
             }
@@ -425,10 +450,14 @@ public class IntegratedInventoryMenu extends InventoryMenu
         }
         else if(index < INV_START || index == OFFHAND_SLOT || this.isEquipmentSlot(index))
         {
-            if(!moveEither(stack, () -> this.moveItemStackTo(stack, INV_START, HOTBAR_END, false), () -> this.moveToBackpack(stack)))
+            if(!moveEither(stack, () -> this.moveItemStackTo(stack, INV_START, HOTBAR_END, false), () -> this.moveToBand(stack)))
             {
                 return ItemStack.EMPTY;
             }
+        }
+        else if(!fromBackpack && this.moveToBandEquipment(stack))
+        {
+            // Onto the mount shown in the band, such as a saddle
         }
         else
         {
@@ -461,12 +490,12 @@ public class IntegratedInventoryMenu extends InventoryMenu
             }
             else if(index < HOTBAR_START)
             {
-                if(!moveEither(stack, () -> this.moveItemStackTo(stack, HOTBAR_START, HOTBAR_END, false), () -> this.moveToBackpack(stack)))
+                if(!moveEither(stack, () -> this.moveItemStackTo(stack, HOTBAR_START, HOTBAR_END, false), () -> this.moveToBand(stack)))
                 {
                     return ItemStack.EMPTY;
                 }
             }
-            else if(!moveEither(stack, () -> this.moveItemStackTo(stack, INV_START, HOTBAR_START, false), () -> this.moveToBackpack(stack)))
+            else if(!moveEither(stack, () -> this.moveItemStackTo(stack, INV_START, HOTBAR_START, false), () -> this.moveToBand(stack)))
             {
                 return ItemStack.EMPTY;
             }
@@ -499,9 +528,25 @@ public class IntegratedInventoryMenu extends InventoryMenu
         return (!stack.isEmpty() && second.getAsBoolean()) || moved;
     }
 
-    private boolean moveToBackpack(ItemStack stack)
+    /** Moves what fits of the stack into the band, while it is open. Returns whether any of it moved. */
+    protected boolean moveToBand(ItemStack stack)
     {
-        return this.bandShown && this.canMoveToBand() && this.moveItemStackTo(stack, BACKPACK_START, this.backpackEnd, false);
+        return this.bandShown && this.canMoveToBand() && this.moveItemStackTo(stack, this.backpackStart, this.backpackEnd, false);
+    }
+
+    /**
+     * Moves a stack quick-moved from the player's inventory into band slots it belongs in before anywhere else (the
+     * player's armor included), such as a saddle onto the shown mount. Returns whether any of it moved.
+     */
+    protected boolean moveToBandEquipment(ItemStack stack)
+    {
+        return false;
+    }
+
+    /** Whether the band is open on the client, so items can be quick-moved into it. See {@link #bandButton}. */
+    protected boolean isBandShown()
+    {
+        return this.bandShown;
     }
 
     /**

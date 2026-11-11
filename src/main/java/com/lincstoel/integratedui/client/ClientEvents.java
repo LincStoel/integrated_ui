@@ -29,6 +29,7 @@ import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
+import net.neoforged.neoforge.client.event.RegisterClientTooltipComponentFactoriesEvent;
 import net.neoforged.neoforge.client.event.RegisterKeyMappingsEvent;
 import net.neoforged.neoforge.client.event.RegisterMenuScreensEvent;
 import net.neoforged.neoforge.client.event.ScreenEvent;
@@ -182,6 +183,12 @@ public final class ClientEvents
         public static void onRegisterKeys(RegisterKeyMappingsEvent event)
         {
             ModKeys.register(event);
+        }
+
+        @SubscribeEvent
+        public static void onRegisterTooltipComponents(RegisterClientTooltipComponentFactoriesEvent event)
+        {
+            event.register(SelectedBundleTooltip.class, ClientSelectedBundleTooltip::new);
         }
 
         @SubscribeEvent

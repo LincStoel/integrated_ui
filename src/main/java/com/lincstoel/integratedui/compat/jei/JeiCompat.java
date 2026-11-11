@@ -140,7 +140,7 @@ public class JeiCompat implements IModPlugin
         public List<Slot> getInventorySlots(C menu, RecipeHolder<CraftingRecipe> recipe)
         {
             List<Slot> slots = new ArrayList<>(menu.slots.subList(IntegratedInventoryMenu.INV_START, IntegratedInventoryMenu.HOTBAR_END));
-            for(Slot slot : menu.slots.subList(IntegratedInventoryMenu.BACKPACK_START, menu.getBackpackEnd()))
+            for(Slot slot : menu.slots.subList(menu.getBackpackStart(), menu.getBackpackEnd()))
             {
                 if(Minecraft.getInstance().player != null && slot.mayPickup(Minecraft.getInstance().player))
                 {

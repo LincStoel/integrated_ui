@@ -2,8 +2,10 @@ package com.lincstoel.integratedui.client;
 
 import com.lincstoel.integratedui.IntegratedUI;
 import com.lincstoel.integratedui.menu.IntegratedInventoryMenu;
+import com.lincstoel.integratedui.menu.MountInventoryMenu;
 import com.lincstoel.integratedui.menu.OpenData;
 import com.lincstoel.integratedui.menu.ShulkerInventoryMenu;
+import com.lincstoel.integratedui.network.OpenMountScreenPayload;
 import com.lincstoel.integratedui.network.OpenShulkerBoxPayload;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.inventory.EffectRenderingInventoryScreen;
@@ -40,6 +42,10 @@ public class IntegratedInventoryScreen extends EffectRenderingInventoryScreen<In
         {
             return ContainerBand.Style.QUARK_BACKPACK;
         }
+        if(data.hasMount())
+        {
+            return ContainerBand.Style.containerItem(MountInventoryMenu.TINT);
+        }
         return ContainerBand.Style.containerItem(data.tint());
     }
 
@@ -65,6 +71,15 @@ public class IntegratedInventoryScreen extends EffectRenderingInventoryScreen<In
             });
             ButtonLabels.set(open, Component.translatable("integrated_ui.gui.open_container", this.menu.getData().title()));
         }
+        // The mount's own screen, as the inventory key opens it without the band
+        if(this.menu instanceof MountInventoryMenu)
+        {
+            open = new ItemButton(12, () -> BUTTON_SPRITE, this.menu.getData()::icon, button -> {
+                OpenFromInventory.expectScreen(this);
+                PacketDistributor.sendToServer(OpenMountScreenPayload.INSTANCE);
+            });
+            ButtonLabels.set(open, Component.translatable("integrated_ui.gui.open_mount", this.menu.getData().title()));
+        }
         this.parts.init(this::addRenderableWidget, this::addWidget, open, null);
     }
 
@@ -89,6 +104,15 @@ public class IntegratedInventoryScreen extends EffectRenderingInventoryScreen<In
         if(!this.parts.renderTooltip(graphics, this.font, this.hoveredSlot, mouseX, mouseY))
         {
             super.renderTooltip(graphics, mouseX, mouseY);
+        }
+    }
+
+    @Override
+    protected void renderSlot(GuiGraphics graphics, Slot slot)
+    {
+        if(!this.parts.renderSlot(graphics, this.font, slot))
+        {
+            super.renderSlot(graphics, slot);
         }
     }
 

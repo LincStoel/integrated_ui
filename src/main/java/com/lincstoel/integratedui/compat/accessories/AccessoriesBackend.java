@@ -16,6 +16,7 @@ import io.wispforest.accessories.menu.AccessoriesInternalSlot;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.Slot;
+import net.minecraft.world.item.ItemStack;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -24,6 +25,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Consumer;
+import java.util.function.ObjIntConsumer;
 import java.util.function.Predicate;
 
 /**
@@ -85,6 +87,25 @@ public class AccessoriesBackend implements EquipmentBackend
                 else
                 {
                     adder.accept(new DisabledSlot());
+                }
+            }
+        }
+    }
+
+    @Override
+    public void forEachStack(Player player, List<EquipmentGroup> groups, ObjIntConsumer<ItemStack> visitor)
+    {
+        AccessoriesCapability capability = AccessoriesCapability.get(player);
+        Map<String, AccessoriesContainer> containers = capability != null ? capability.getContainers() : Map.of();
+        int position = 0;
+        for(EquipmentGroup group : groups)
+        {
+            AccessoriesContainer container = containers.get(group.id());
+            for(int i = 0; i < group.size(); i++, position++)
+            {
+                if(container != null && i < container.getSize())
+                {
+                    visitor.accept(container.getAccessories().getItem(i), position);
                 }
             }
         }

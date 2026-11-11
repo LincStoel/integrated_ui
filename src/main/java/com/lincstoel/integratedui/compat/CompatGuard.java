@@ -22,6 +22,7 @@ public final class CompatGuard
     public static final String SUPPLEMENTARIES = "supplementaries";
     public static final String ARS_NOUVEAU = "ars_nouveau";
     public static final String CREATE = "create";
+    public static final String DIESEL_GENERATORS = "createdieselgenerators";
     public static final String AETHER = "aether";
     public static final String FIELD_GUIDE = "fieldguide";
     public static final String FTB_QUESTS = "ftbquests";

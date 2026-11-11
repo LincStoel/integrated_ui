@@ -27,6 +27,64 @@ val gametest: SourceSet = sourceSets.create("gametest") {
     runtimeClasspath += sourceSets.main.get().runtimeClasspath + sourceSets.main.get().output
 }
 
+// The modpackClient run: the client with a local copy of a modpack's mods and configs (by default the World Traveler 2
+// CurseForge instance), in its own run-modpack folder, with this mod loaded from source in place of the pack's own jar.
+// -PmodpackInstance="<instance folder>" picks another instance. The instance itself is only ever read.
+val modpackInstance: Provider<String> = providers.gradleProperty("modpackInstance")
+    .orElse(providers.systemProperty("user.home").map { "$it/curseforge/minecraft/Instances/World Traveler 2" })
+val modpackRunDir: Directory = layout.projectDirectory.dir("run-modpack")
+/** The folders copied from the instance besides mods: what the pack is made of, not what playing it produces (worlds, logs, caches). */
+val modpackFolders = listOf("config", "defaultconfigs", "kubejs", "resourcepacks", "shaderpacks", "datapacks", "global_packs", "patchouli_books")
+
+/**
+ * Brings run-modpack up to date with the instance, before every modpackClient launch: mods are copied only when they
+ * changed (and removed when the pack dropped them), and the pack's folders above are reset to the pack's, so configs
+ * changed while testing don't stick. Worlds, and options once copied, are the run's own and are left alone.
+ */
+val syncModpack = tasks.register("syncModpack") {
+    group = "mod development"
+    description = "Copies the modpack instance's mods and configs into run-modpack, for the modpackClient run."
+    doLast {
+        val instance = file(modpackInstance.get())
+        val packMods = instance.resolve("mods")
+        if(!packMods.isDirectory) {
+            throw GradleException("No modpack instance with a mods folder at $instance; set it with -PmodpackInstance=\"<instance folder>\"")
+        }
+        val runMods = modpackRunDir.dir("mods").asFile.apply { mkdirs() }
+        // The pack's own copy of this mod is left out: it is loaded from source instead
+        val jars = packMods.listFiles { f -> f.isFile && f.name.endsWith(".jar") && !f.name.startsWith("$modId-") }!!.associateBy { it.name }
+        runMods.listFiles { f -> f.isFile && f.name !in jars }?.forEach { it.delete() }
+        var copied = 0
+        for((name, jar) in jars) {
+            val target = runMods.resolve(name)
+            if(!target.isFile || target.length() != jar.length() || target.lastModified() != jar.lastModified()) {
+                jar.copyTo(target, overwrite = true)
+                target.setLastModified(jar.lastModified())
+                copied++
+            }
+        }
+        for(folder in modpackFolders) {
+            val packFolder = instance.resolve(folder)
+            val runFolder = modpackRunDir.dir(folder).asFile
+            if(packFolder.isDirectory) {
+                project.sync {
+                    from(packFolder)
+                    into(runFolder)
+                }
+            } else {
+                runFolder.deleteRecursively()
+            }
+        }
+        // The pack's options (resource packs, keybinds) only as a starting point, so changes made while testing stay
+        val packOptions = instance.resolve("options.txt")
+        val runOptions = modpackRunDir.file("options.txt").asFile
+        if(packOptions.isFile && !runOptions.exists()) {
+            packOptions.copyTo(runOptions)
+        }
+        logger.lifecycle("Modpack synced from $instance: ${jars.size} mods ($copied copied)")
+    }
+}
+
 neoForge {
     enable {
         version = neoVersion
@@ -43,6 +101,16 @@ neoForge {
             gameDirectory = layout.projectDirectory.dir("run")
             // -PquickPlay="World Name" joins that singleplayer world on launch
             providers.gradleProperty("quickPlay").orNull?.let { programArguments.addAll("--quickPlaySingleplayer", it) }
+        }
+        // The client with the modpack's mods and configs (see syncModpack), instead of the optional mods in run/mods
+        register("modpackClient") {
+            client()
+            ideName = "Modpack Client"
+            gameDirectory = modpackRunDir
+            // As much memory as the CurseForge instance is given
+            jvmArguments.addAll("-Xms8G", "-Xmx16G")
+            providers.gradleProperty("quickPlay").orNull?.let { programArguments.addAll("--quickPlaySingleplayer", it) }
+            taskBefore(syncModpack)
         }
         register("server") {
             server()
@@ -88,7 +156,7 @@ repositories {
 }
 
 // Run with -PwithoutBackpacked, -PwithoutQuark, -PwithoutCurios, -PwithoutAccessories, -PwithoutArsNouveau,
-// -PwithoutCreate, -PwithoutSupplementaries, -PwithoutAether, -PwithoutFieldGuide, -PwithoutFtbQuests, -PwithoutJei and/or -PwithoutMouseTweaks to test without those optional
+// -PwithoutCreate, -PwithoutDieselGenerators, -PwithoutSupplementaries, -PwithoutAether, -PwithoutFieldGuide, -PwithoutFtbQuests, -PwithoutJei and/or -PwithoutMouseTweaks to test without those optional
 // dependencies, or -Pvanilla to run with no third-party mods at all (they are still compiled against)
 val vanilla = providers.gradleProperty("vanilla").isPresent
 fun without(flag: String) = vanilla || providers.gradleProperty(flag).isPresent
@@ -100,10 +168,12 @@ val devMods = listOf(
     DevMod("withoutBackpacked", listOf("curse.maven:backpacked-352835:7866688", "curse.maven:framework-549225:7530361")), // 3.0.5, Framework 0.13.11
     DevMod("withoutQuark", listOf("maven.modrinth:quark:8uDGRJCr", "maven.modrinth:zeta:9GjNW2Gf")), // 4.1-485, Zeta 1.1-40
     DevMod("withoutCurios", listOf("maven.modrinth:curios:yohfFbgD")), // 9.5.1+1.21.1
-    DevMod("withoutAccessories", listOf("maven.modrinth:accessories:Fb55Fgjz", "maven.modrinth:accessories-compat-layer:JMgVNypu",
-        "maven.modrinth:owo-lib:NMCHU6DZ")), // 1.1.0-beta.53+1.21.1, compat layer 0.1.12, owo 0.12.15.5-beta.1+1.21
+    // owo 0.12.15.6 is needed from NeoForge 21.1.264: older ones fail to encode their handshake, which disconnects on joining
+    DevMod("withoutAccessories", listOf("maven.modrinth:accessories:dy9BbDEy", "maven.modrinth:accessories-compat-layer:UB8bxpVn",
+        "maven.modrinth:owo-lib:wbdHEItB")), // 1.1.0-beta.54+1.21.1, compat layer 0.1.13, owo 0.12.15.6-beta.1+1.21
     DevMod("withoutArsNouveau", listOf("maven.modrinth:ars-nouveau:1VWyxABY", "maven.modrinth:geckolib:Grwn5rUB")), // 5.13.2, GeckoLib 4.9.3
     DevMod("withoutCreate", listOf("maven.modrinth:create:UjX6dr61")), // 6.0.10
+    DevMod("withoutDieselGenerators", listOf("maven.modrinth:create-diesel-generators:UoPH8lO1")), // 1.21.1-1.3.15 (needs Create)
     DevMod("withoutSupplementaries", listOf("maven.modrinth:supplementaries:WrZWfRjP", "maven.modrinth:moonlight:YfHkk7hg")), // 1.21.1-3.9.9, Moonlight 1.21.1-3.7.1
     DevMod("withoutAether", listOf("curse.maven:aether-255308:7043502")), // 1.21.1-1.5.10
     DevMod("withoutFieldGuide", listOf("maven.modrinth:field-guide:Qc9FRoEe")), // 1.21.0+1.21.1

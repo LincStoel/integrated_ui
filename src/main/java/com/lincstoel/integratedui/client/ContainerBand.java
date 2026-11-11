@@ -6,6 +6,7 @@ import com.lincstoel.integratedui.compat.quark.QuarkClientCompat;
 import com.lincstoel.integratedui.config.ClientConfig;
 import com.lincstoel.integratedui.config.ServerConfig;
 import com.lincstoel.integratedui.menu.IntegratedInventoryMenu;
+import com.lincstoel.integratedui.menu.MountInventoryMenu;
 import com.lincstoel.integratedui.menu.Navigation;
 import com.lincstoel.integratedui.menu.OpenData;
 import com.lincstoel.integratedui.menu.ShulkerInventoryMenu;
@@ -27,6 +28,8 @@ import net.minecraft.network.chat.FormattedText;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.util.Mth;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.inventory.Slot;
 import net.neoforged.neoforge.network.PacketDistributor;
 import org.jetbrains.annotations.Nullable;
 
@@ -79,6 +82,9 @@ public class ContainerBand
 
     private final AbstractContainerScreen<?> screen;
     private final IntegratedInventoryMenu menu;
+    /** The menu, when it shows the Mount page, whose slots are laid out rather than scrolled (see {@link MountLayout}). */
+    @Nullable
+    private final MountInventoryMenu mount;
     private final OpenData data;
     private final Style style;
     private final Runnable onScroll;
@@ -106,12 +112,18 @@ public class ContainerBand
     private ScrollDrag scrollDrag = ScrollDrag.NONE;
     /** The position text's width when the header was last laid out. */
     private int lastPositionWidth;
+    /** The Mount page's layout, while it is open. */
+    @Nullable
+    private MountLayout mountLayout;
+    /** Whether the screen is about to be laid out again, as the Mount page's slots in use changed. */
+    private boolean relayoutPending;
 
     /** {@code onScroll} is called whenever the grid scrolls, which moves the slots. */
     public ContainerBand(AbstractContainerScreen<?> screen, IntegratedInventoryMenu menu, Style style, Runnable onScroll)
     {
         this.screen = screen;
         this.menu = menu;
+        this.mount = menu instanceof MountInventoryMenu mountMenu ? mountMenu : null;
         this.data = menu.getData();
         this.style = style;
         this.onScroll = onScroll;
@@ -124,6 +136,24 @@ public class ContainerBand
     public void layout(int screenHeight)
     {
         this.expanded = this.data.hasBand() && ClientConfig.get(ClientConfig.CONTAINER_BAND_OPEN);
+        this.mountLayout = null;
+        this.relayoutPending = false;
+        if(this.expanded && this.mount != null)
+        {
+            // The Mount page never scrolls: it is as tall as its layout
+            this.gap = sortButtonGap();
+            this.visibleColumns = 0;
+            this.visibleRows = 0;
+            this.gridX = 8;
+            this.gridY = SPLIT_Y + BAND_HEADER + 1;
+            this.mountLayout = MountLayout.compute(this.mount, this.gridY);
+            this.height = BAND_HEADER + this.mountLayout.contentHeight() + BAND_BOTTOM;
+            this.menu.offsetInventorySlots(this.getHeight());
+            this.scrollColumn = 0;
+            this.scrollRow = 0;
+            this.applyScroll();
+            return;
+        }
         if(this.expanded)
         {
             this.gap = sortButtonGap();
@@ -170,12 +200,12 @@ public class ContainerBand
 
     private boolean hasHorizontalScroll()
     {
-        return this.data.columns() > this.visibleColumns;
+        return this.mount == null && this.data.columns() > this.visibleColumns;
     }
 
     private boolean hasVerticalScroll()
     {
-        return this.data.rows() > this.visibleRows;
+        return this.mount == null && this.data.rows() > this.visibleRows;
     }
 
     private int maxScrollColumn()
@@ -190,6 +220,19 @@ public class ContainerBand
 
     private void applyScroll()
     {
+        if(this.mount != null)
+        {
+            if(this.mountLayout != null)
+            {
+                this.mountLayout.apply(this.mount, true);
+            }
+            else
+            {
+                // Collapsed: every slot hidden
+                this.menu.scrollBackpack(this.gridX, this.gridY, 0, 0, 0, 0);
+            }
+            return;
+        }
         this.menu.scrollBackpack(this.gridX, this.gridY, this.visibleColumns, this.visibleRows, this.scrollColumn, this.scrollRow);
     }
 
@@ -237,7 +280,8 @@ public class ContainerBand
         this.add(adder, this.previous, () -> navRight - BUTTON_SIZE * 2, () -> HEADER_Y);
         this.updateNavigation();
 
-        if(!ServerConfig.get(ServerConfig.RENAMING))
+        // The Bundles page is no one thing to name, and a mount is named with a name tag
+        if(!ServerConfig.get(ServerConfig.RENAMING) || this.data.hasBundles() || this.data.hasMount())
         {
             return;
         }
@@ -263,6 +307,12 @@ public class ContainerBand
     {
         ClientConfig.CONTAINER_BAND_OPEN.set(!this.expanded);
         ClientConfig.CONTAINER_BAND_OPEN.save();
+        this.relayout();
+    }
+
+    /** Lays the screen out again, for the band's new height. */
+    private void relayout()
+    {
         // Deferred: this runs from the button's click, while the screen goes through the widgets it is about to replace
         Minecraft mc = Minecraft.getInstance();
         mc.tell(() -> {
@@ -310,6 +360,12 @@ public class ContainerBand
 
     public void tick()
     {
+        if(this.mount != null && this.mountLayout != null && !this.relayoutPending && !this.mountLayout.active().equals(MountLayout.activeSlots(this.mount)))
+        {
+            // Slots came into use or went out of it, such as a chest put on the mount
+            this.relayoutPending = true;
+            this.relayout();
+        }
         int positionWidth = this.positionWidth();
         if(this.updateNavigation() || positionWidth != this.lastPositionWidth)
         {
@@ -498,6 +554,11 @@ public class ContainerBand
         }
 
         this.style.drawBackground(graphics, left + BAND_X, top + SPLIT_Y, BAND_WIDTH, this.height - 1);
+        if(this.mount != null && this.mountLayout != null)
+        {
+            this.renderMount(graphics, this.mount, this.mountLayout, left, top);
+            return;
+        }
         int slotsWidth = this.visibleColumns * 18;
         int slotsHeight = this.visibleRows * 18;
         for(int row = 0; row < this.visibleRows; row++)
@@ -520,6 +581,49 @@ public class ContainerBand
             EquipmentPanel.renderScrollbar(graphics, this.style.scrollbar(), left + this.gridX - 1, trackY, slotsWidth, SCROLLBAR_SIZE, true,
                 this.scrollColumn, this.maxScrollColumn(), this.visibleColumns, this.data.columns());
         }
+    }
+
+    /** Draws the Mount page's slots, and the frame of the mount's portrait (drawn by {@link #renderPortrait}). */
+    private void renderMount(GuiGraphics graphics, MountInventoryMenu mount, MountLayout layout, int left, int top)
+    {
+        for(int i = 0; i < layout.xs().length; i++)
+        {
+            if(!layout.active().get(i))
+            {
+                continue;
+            }
+            int x = left + layout.xs()[i] - 1;
+            int y = top + layout.ys()[i] - 1;
+            this.style.drawSlots(graphics, x, y, 18, 18);
+            Slot slot = mount.getMountSlot(i);
+            ResourceLocation sprite = !mount.isStorage(i) && !slot.hasItem() ? MountLayout.equipmentSprite(slot) : null;
+            if(sprite != null)
+            {
+                blitTinted(graphics, sprite, this.style.slotTint(), x, y, 18, 18);
+            }
+        }
+        // A sunken frame, as the player's portrait has
+        int x = left + layout.portraitX();
+        int y = top + layout.portraitY();
+        int width = layout.portraitWidth();
+        int height = layout.contentHeight();
+        graphics.fill(x, y, x + width, y + height, 0xFF373737);
+        graphics.fill(x + 1, y + 1, x + width, y + height, 0xFFFFFFFF);
+        graphics.fill(x + 1, y + 1, x + width - 1, y + height - 1, 0xFF000000);
+    }
+
+    /** Draws the mount in its portrait frame on the Mount page, facing the mouse. */
+    public void renderPortrait(GuiGraphics graphics, int mouseX, int mouseY)
+    {
+        Entity vehicle = this.mount != null ? this.mount.getVehicle() : null;
+        if(!this.expanded || this.mountLayout == null || vehicle == null)
+        {
+            return;
+        }
+        int x = this.screen.getGuiLeft() + this.mountLayout.portraitX();
+        int y = this.screen.getGuiTop() + this.mountLayout.portraitY();
+        MountLayout.renderPortrait(graphics, vehicle, x + 1, y + 1, x + this.mountLayout.portraitWidth() - 1,
+            y + this.mountLayout.contentHeight() - 1, mouseX, mouseY);
     }
 
     /** How many slots there are in the given visible row, from the left: a container item's grid can end in a partial row. */

@@ -2,28 +2,38 @@ package com.lincstoel.integratedui.client;
 
 import com.lincstoel.integratedui.IntegratedUI;
 import com.lincstoel.integratedui.compat.mousetweaks.MouseTweaksCompat;
+import com.lincstoel.integratedui.menu.BundleInventoryMenu;
+import com.lincstoel.integratedui.menu.Bundles;
 import com.lincstoel.integratedui.menu.IntegratedInventoryMenu;
 import com.lincstoel.integratedui.menu.Navigation;
+import com.lincstoel.integratedui.network.SelectBundleItemPayload;
+import net.minecraft.Util;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.ImageButton;
+import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.client.gui.screens.recipebook.RecipeBookComponent;
 import net.minecraft.client.renderer.Rect2i;
+import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.network.chat.CommonComponents;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.util.Mth;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffectUtil;
 import net.minecraft.world.inventory.Slot;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.component.BundleContents;
 import net.neoforged.neoforge.client.ClientHooks;
 import net.neoforged.neoforge.client.event.ScreenEvent;
+import net.neoforged.neoforge.network.PacketDistributor;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
@@ -43,6 +53,8 @@ public final class InventoryScreenParts
     private static final Component CRAFTING_TITLE = Component.translatable("container.crafting");
     private static final ResourceLocation EFFECT_BACKGROUND_LARGE = ResourceLocation.withDefaultNamespace("container/inventory/effect_background_large");
     private static final ResourceLocation EFFECT_BACKGROUND_SMALL = ResourceLocation.withDefaultNamespace("container/inventory/effect_background_small");
+    /** The colour of the glow around the slot holding the hovered bundle (see {@link #renderBundleSourceGlow}). */
+    private static final int BUNDLE_GLOW_RGB = 0xFFE680;
 
     private final AbstractContainerScreen<?> screen;
     private final IntegratedInventoryMenu menu;
@@ -175,10 +187,68 @@ public final class InventoryScreenParts
         this.recipeBook.renderTooltip(graphics, this.screen.getGuiLeft(), this.screen.getGuiTop(), mouseX, mouseY);
     }
 
-    /** Names a hovered empty equipment slot. Returns true if it drew a tooltip, in place of the screen's own. */
+    /**
+     * Names a hovered empty equipment slot, or shows a hovered bundle on the Bundles page with its selected item marked.
+     * Returns true if it drew a tooltip, in place of the screen's own.
+     */
     public boolean renderTooltip(GuiGraphics graphics, Font font, @Nullable Slot hoveredSlot, int mouseX, int mouseY)
     {
-        return this.panel.renderTooltip(graphics, font, hoveredSlot, mouseX, mouseY);
+        return this.panel.renderTooltip(graphics, font, hoveredSlot, mouseX, mouseY) || this.renderBundleTooltip(graphics, font, hoveredSlot, mouseX, mouseY);
+    }
+
+    /**
+     * A bundle's own tooltip, with the item selected on the Bundles page marked: if its tooltip shows its contents as
+     * vanilla's does, or its kind lists them in its place (see BundleKind#getTooltipContents).
+     */
+    private boolean renderBundleTooltip(GuiGraphics graphics, Font font, @Nullable Slot hoveredSlot, int mouseX, int mouseY)
+    {
+        if(hoveredSlot == null || !this.menu.getCarried().isEmpty() || !(this.menu instanceof BundleInventoryMenu bundles))
+        {
+            return false;
+        }
+        int index = bundles.getBundleIndex(hoveredSlot);
+        ItemStack bundle = hoveredSlot.getItem();
+        if(index < 0 || bundle.isEmpty())
+        {
+            return false;
+        }
+        // Its own bundle tooltip, else the contents listed in the same way for a bag whose tooltip doesn't show them
+        BundleContents contents = bundle.getTooltipImage().orElse(null) instanceof BundleContents own ? own : Bundles.getTooltipContents(bundle);
+        if(contents == null)
+        {
+            return false;
+        }
+        graphics.renderTooltip(font, Screen.getTooltipFromItem(Minecraft.getInstance(), bundle),
+            Optional.of(new SelectedBundleTooltip(contents, bundles.getSelected(index))), bundle, mouseX, mouseY);
+        return true;
+    }
+
+    /**
+     * Draws a slot of the Bundles page: the bundle's selected item, with the bundle small in the top right corner. Returns false
+     * for any other slot (or an empty bundle, drawn as itself), which the screen draws as usual.
+     */
+    public boolean renderSlot(GuiGraphics graphics, Font font, Slot slot)
+    {
+        if(!(this.menu instanceof BundleInventoryMenu bundles))
+        {
+            return false;
+        }
+        int index = bundles.getBundleIndex(slot);
+        ItemStack bundle = slot.getItem();
+        ItemStack selected = index >= 0 ? bundles.getSelectedItem(index) : ItemStack.EMPTY;
+        if(bundle.isEmpty() || selected.isEmpty())
+        {
+            return false;
+        }
+        graphics.renderItem(selected, slot.x, slot.y, slot.x + slot.y * this.screen.getXSize());
+        graphics.renderItemDecorations(font, selected, slot.x, slot.y);
+        // In the top right corner, over the item and its count
+        graphics.pose().pushPose();
+        graphics.pose().translate(slot.x + 8, slot.y, 200.0F);
+        graphics.pose().scale(0.5F, 0.5F, 0.5F);
+        graphics.renderItem(bundle, 0, 0);
+        graphics.pose().popPose();
+        return true;
     }
 
     public void renderBg(GuiGraphics graphics, int mouseX, int mouseY)
@@ -188,6 +258,7 @@ public final class InventoryScreenParts
         this.panel.render(graphics);
         this.band.renderBehind(graphics);
         this.band.render(graphics);
+        this.band.renderPortrait(graphics, mouseX, mouseY);
         InventoryScreen.renderEntityInInventoryFollowsMouse(graphics, left + 26, top + 8, left + 75, top + 78, 30, 0.0625F, mouseX, mouseY,
             Minecraft.getInstance().player);
     }
@@ -196,6 +267,48 @@ public final class InventoryScreenParts
     {
         graphics.drawString(font, CRAFTING_TITLE, 97, 8, 0x404040, false);
         this.band.renderLabels(graphics, font);
+        this.renderBundleSourceGlow(graphics);
+    }
+
+    /**
+     * While a slot of the Bundles page is hovered, outlines the slot its bundle is really in with a pulsing glow, so it
+     * is clear which bundle is being used. Drawn with the labels (relative to the window, over the items).
+     */
+    private void renderBundleSourceGlow(GuiGraphics graphics)
+    {
+        Slot hovered = this.screen.getSlotUnderMouse();
+        if(hovered == null || !(this.menu instanceof BundleInventoryMenu bundles))
+        {
+            return;
+        }
+        int index = bundles.getBundleIndex(hovered);
+        Slot source = index >= 0 ? bundles.getSourceSlot(index) : null;
+        if(source == null || isSlotHidden(source) || bundles.getBundle(index).isEmpty())
+        {
+            return;
+        }
+        float pulse = (Mth.sin(Util.getMillis() / 250.0F) + 1.0F) / 2.0F;
+        int x = source.x;
+        int y = source.y;
+        // A faint outer halo, a bright ring on the slot's edge, and a soft inner glow
+        drawRing(graphics, x - 2, y - 2, 20, glowColor(0x50 + (int) (pulse * 0x60)));
+        drawRing(graphics, x - 1, y - 1, 18, glowColor(0xFF));
+        drawRing(graphics, x, y, 16, glowColor(0x60 + (int) (pulse * 0x50)));
+        graphics.fill(RenderType.guiOverlay(), x + 1, y + 1, x + 15, y + 15, glowColor(0x18 + (int) (pulse * 0x20)));
+    }
+
+    private static int glowColor(int alpha)
+    {
+        return alpha << 24 | BUNDLE_GLOW_RGB;
+    }
+
+    /** A one pixel square outline, {@code size} pixels across. */
+    private static void drawRing(GuiGraphics graphics, int x, int y, int size, int color)
+    {
+        graphics.fill(RenderType.guiOverlay(), x, y, x + size, y + 1, color);
+        graphics.fill(RenderType.guiOverlay(), x, y + size - 1, x + size, y + size, color);
+        graphics.fill(RenderType.guiOverlay(), x, y + 1, x + 1, y + size - 1, color);
+        graphics.fill(RenderType.guiOverlay(), x + size - 1, y + 1, x + size, y + size - 1, color);
     }
 
     /**
@@ -327,12 +440,39 @@ public final class InventoryScreenParts
     public boolean mouseScrolled(double mouseX, double mouseY, double scrollY, boolean horizontal, BooleanSupplier screenScroll)
     {
         Slot hovered = this.screen.getSlotUnderMouse();
+        int step = scrollY > 0 ? -1 : scrollY < 0 ? 1 : 0;
+        if(hovered != null && step != 0 && this.scrollBundleSelection(hovered, step))
+        {
+            return true;
+        }
         if(hovered != null && !isSlotHidden(hovered) && IntegratedUI.isMouseTweaksLoaded() && MouseTweaksCompat.isWheelTweakOn())
         {
             return screenScroll.getAsBoolean();
         }
-        int step = scrollY > 0 ? -1 : scrollY < 0 ? 1 : 0;
         return this.band.mouseScrolled(mouseX, mouseY, step, horizontal) || this.panel.mouseScrolled(mouseX, mouseY, step) || screenScroll.getAsBoolean();
+    }
+
+    /** Over a bundle on the Bundles page, moves its selected item along. Returns true if the slot holds a bundle with anything in it. */
+    private boolean scrollBundleSelection(Slot hovered, int step)
+    {
+        if(!(this.menu instanceof BundleInventoryMenu bundles) || isSlotHidden(hovered))
+        {
+            return false;
+        }
+        int index = bundles.getBundleIndex(hovered);
+        int selected = index >= 0 ? bundles.stepSelection(index, step) : -1;
+        if(selected < 0)
+        {
+            return false;
+        }
+        PacketDistributor.sendToServer(new SelectBundleItemPayload(this.menu.containerId, index, selected));
+        return true;
+    }
+
+    /** Whether the slot is one of the Bundles page's, which only this mod's own clicks work on. */
+    private boolean isBundleSlot(Slot slot)
+    {
+        return this.menu.getData().hasBundles() && slot.index >= this.menu.getBackpackStart() && slot.index < this.menu.getBackpackEnd();
     }
 
     /** Typing while renaming, then the previous/next keys, then the screen's own keys. */
@@ -401,14 +541,18 @@ public final class InventoryScreenParts
     /**
      * The slots Mouse Tweaks may move items between, in the order it fills them: the player's inventory, then the
      * band (so items scrolled out of the inventory go there before the crafting grid), the crafting area and the
-     * equipment slots. Hidden slots are left out, so nothing goes where it can't be seen.
+     * equipment slots. Hidden slots are left out, so nothing goes where it can't be seen, as are the Bundles page's,
+     * which don't hold items the usual way.
      */
     public List<Slot> getMouseTweaksSlots()
     {
         List<Slot> slots = new ArrayList<>();
         List<Slot> all = this.menu.slots;
-        addVisible(slots, all, 5, IntegratedInventoryMenu.BACKPACK_START);
-        addVisible(slots, all, IntegratedInventoryMenu.BACKPACK_START, this.menu.getBackpackEnd());
+        addVisible(slots, all, 5, this.menu.getBackpackStart());
+        if(!this.menu.getData().hasBundles())
+        {
+            addVisible(slots, all, this.menu.getBackpackStart(), this.menu.getBackpackEnd());
+        }
         addVisible(slots, all, IntegratedInventoryMenu.RESULT_SLOT, 5);
         addVisible(slots, all, this.menu.getEquipmentStart(), all.size());
         return slots;
@@ -425,7 +569,10 @@ public final class InventoryScreenParts
         }
     }
 
-    /** The unhidden slot under the mouse, by the screen's own hover test, or null. */
+    /**
+     * The unhidden slot under the mouse, by the screen's own hover test, or null, for Mouse Tweaks: null over the
+     * Bundles page too, so it leaves the wheel and drags there to this mod.
+     */
     @Nullable
     public Slot findSlot(double mouseX, double mouseY, SlotHoverTest test)
     {
@@ -433,7 +580,7 @@ public final class InventoryScreenParts
         {
             if(!isSlotHidden(slot) && test.isHovering(slot.x, slot.y, 16, 16, mouseX, mouseY))
             {
-                return slot;
+                return this.isBundleSlot(slot) ? null : slot;
             }
         }
         return null;

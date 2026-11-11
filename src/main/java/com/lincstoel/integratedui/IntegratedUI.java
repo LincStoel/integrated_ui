@@ -49,6 +49,7 @@ public class IntegratedUI
     private static final boolean JEI_LOADED = LoadingModList.get().getModFileById("jei") != null;
     private static final boolean ARS_NOUVEAU_LOADED = LoadingModList.get().getModFileById("ars_nouveau") != null;
     private static final boolean CREATE_LOADED = LoadingModList.get().getModFileById("create") != null;
+    private static final boolean DIESEL_GENERATORS_LOADED = LoadingModList.get().getModFileById("createdieselgenerators") != null;
     private static final boolean SUPPLEMENTARIES_LOADED = LoadingModList.get().getModFileById("supplementaries") != null;
     private static final boolean AETHER_LOADED = LoadingModList.get().getModFileById("aether") != null;
     private static final boolean CURIOS_LOADED = LoadingModList.get().getModFileById("curios") != null;
@@ -135,6 +136,11 @@ public class IntegratedUI
         return CREATE_LOADED;
     }
 
+    public static boolean isDieselGeneratorsLoaded()
+    {
+        return DIESEL_GENERATORS_LOADED;
+    }
+
     public static boolean isSupplementariesLoaded()
     {
         return SUPPLEMENTARIES_LOADED;
@@ -184,7 +190,10 @@ public class IntegratedUI
         return BACKPACKED_LOADED && ServerConfig.get(ServerConfig.BACKPACKED) && CompatGuard.isWorking(CompatGuard.BACKPACKED);
     }
 
-    /** Whether the worn Quark backpack is shown in the band, and our screens get Quark's inventory buttons. */
+    /**
+     * Whether the worn Quark backpack is shown in the band, seed pouches on the Bundles page, and our screens get Quark's
+     * inventory buttons.
+     */
     public static boolean isQuarkEnabled()
     {
         return QUARK_LOADED && ServerConfig.get(ServerConfig.QUARK) && CompatGuard.isWorking(CompatGuard.QUARK);
@@ -200,6 +209,12 @@ public class IntegratedUI
     public static boolean isCreateEnabled()
     {
         return CREATE_LOADED && ServerConfig.get(ServerConfig.CREATE) && CompatGuard.isWorking(CompatGuard.CREATE);
+    }
+
+    /** Whether track layers bags are shown on the Bundles page. */
+    public static boolean isDieselGeneratorsEnabled()
+    {
+        return DIESEL_GENERATORS_LOADED && ServerConfig.get(ServerConfig.DIESEL_GENERATORS) && CompatGuard.isWorking(CompatGuard.DIESEL_GENERATORS);
     }
 
     /** Whether sacks open in Supplementaries' sack screen. */

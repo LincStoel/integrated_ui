@@ -77,6 +77,18 @@ public record OpenData(Band band, int backpackIndex, int columns, int rows, int 
         return this.band == Band.QUARK_BACKPACK;
     }
 
+    /** Whether the Bundles page is shown: a slot for each bundle the player carries (see BundleInventoryMenu). */
+    public boolean hasBundles()
+    {
+        return this.band == Band.BUNDLES;
+    }
+
+    /** Whether the Mount page is shown: what the player rides (see MountInventoryMenu). */
+    public boolean hasMount()
+    {
+        return this.band == Band.MOUNT;
+    }
+
     public int bandSize()
     {
         return this.columns * this.rows;
@@ -90,7 +102,7 @@ public record OpenData(Band band, int backpackIndex, int columns, int rows, int 
     /** What the band between the crafting area and the main inventory shows. */
     public enum Band
     {
-        NONE, BACKPACK, CONTAINER_ITEM, QUARK_BACKPACK;
+        NONE, BACKPACK, CONTAINER_ITEM, QUARK_BACKPACK, BUNDLES, MOUNT;
 
         public static final StreamCodec<ByteBuf, Band> STREAM_CODEC = ByteBufCodecs.idMapper(
             ByIdMap.continuous(Band::ordinal, values(), ByIdMap.OutOfBoundsStrategy.ZERO), Band::ordinal);

@@ -3,6 +3,7 @@ package com.lincstoel.integratedui.menu;
 import com.lincstoel.integratedui.IntegratedUI;
 import com.lincstoel.integratedui.compat.CompatGuard;
 import com.lincstoel.integratedui.compat.supplementaries.SupplementariesCompat;
+import com.lincstoel.integratedui.config.RegistryIdList;
 import com.lincstoel.integratedui.config.ServerConfig;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.component.DataComponents;
@@ -44,9 +45,14 @@ import java.util.function.IntFunction;
 
 /**
  * Container items: items that keep their contents in the {@link DataComponents#CONTAINER} component the way shulker
- * boxes do, recognised by the component being part of the item's defaults and by the item keeping its contents when
- * its block is broken (a chest has the component too, but spills its contents). This takes in vanilla's shulker boxes
- * and Supplementaries' sacks alike, and any other mod's item built the same way, without knowing about any of them.
+ * boxes do, recognised by the component being part of the item's defaults, by the item placing a block whose block
+ * entity is a container, and by it keeping its contents when that block is broken (a chest has the component too, but
+ * spills its contents). This takes in vanilla's shulker boxes and Supplementaries' sacks alike, and any other mod's
+ * item built the same way, without knowing about any of them.
+ * <p>
+ * Items that have the component but place no such block (such as Iron's Arms 'n Artifice's guns, which keep their
+ * attachments in it) are left out: nothing says how many slots they have or what may go in them, so only their own
+ * mod should change their contents. The config's item list can still take them in, as a whitelist.
  * <p>
  * A container item that places a block (as both of those do) is described by that block's block entity: its size,
  * and what it accepts. Its colour comes from the {@code c:dyed/<color>} convention tags, as shulker boxes are dyed.
@@ -56,7 +62,7 @@ public final class ContainerItems
 {
     /**
      * Container items left out of the band, such as Supplementaries' safe, whose contents are only for its owner.
-     * Datapacks can add to it. Ignored while the config's whitelist is on.
+     * Datapacks can add to it. Ignored while the config's item list is a whitelist.
      */
     public static final TagKey<Item> BAND_EXCLUDED = TagKey.create(Registries.ITEM, IntegratedUI.rl("band_excluded"));
     /** Container items that can be opened in a screen of their own (from the band, or by right-clicking them). */
@@ -83,9 +89,8 @@ public final class ContainerItems
     /** What sorting needs to know of each container item, looked up once (tags can change, so cleared when they do). */
     private static final Map<Item, ItemInfo> ITEM_INFO = new ConcurrentHashMap<>();
 
-    /** The parsed config whitelist, and the raw list it was parsed from (replaced whenever the config reloads). */
-    @Nullable
-    private static volatile Whitelist whitelist;
+    /** The config's whitelist or blacklist: item ids, and item tags given with a leading {@code #}. */
+    private static final RegistryIdList<Item> ITEM_LIST = new RegistryIdList<>(BuiltInRegistries.ITEM, ServerConfig.CONTAINER_ITEM_LIST);
 
     private ContainerItems() {}
 
@@ -102,8 +107,9 @@ public final class ContainerItems
 
     /**
      * Whether the band can show this stack: a single, unlooted and unlocked container item, that is on the config's
-     * whitelist when that is on, or else one that keeps its contents when broken (see {@link #keepsContents}), isn't in
-     * {@link #BAND_EXCLUDED} and is larger than the config's smallest size. Works on both sides.
+     * list when that is a whitelist, or else one that isn't on that blacklist, keeps its contents when broken (see
+     * {@link #keepsContents}), isn't in {@link #BAND_EXCLUDED} and is larger than the config's smallest size. Works on
+     * both sides.
      */
     public static boolean isContainerItem(ItemStack stack)
     {
@@ -111,17 +117,18 @@ public final class ContainerItems
         {
             return false;
         }
-        if(ServerConfig.get(ServerConfig.CONTAINER_ITEM_WHITELIST_ENABLED))
+        boolean listed = ITEM_LIST.matches(stack.getItem());
+        if(ServerConfig.get(ServerConfig.CONTAINER_ITEM_LIST_IS_WHITELIST))
         {
-            return getWhitelist().matches(stack);
+            return listed;
         }
-        return keepsContents(stack.getItem()) && !stack.is(BAND_EXCLUDED)
+        return !listed && keepsContents(stack.getItem()) && !stack.is(BAND_EXCLUDED)
             && getSize(stack) > ServerConfig.get(ServerConfig.IGNORE_CONTAINER_ITEMS_UP_TO_SLOTS);
     }
 
     /**
-     * Whether the item keeps what is inside it when its block is broken, as a shulker box does (a chest spills its
-     * contents instead): only such items are really meant to be carried full. Worked out by the server, see
+     * Whether the item places a container block that keeps what is inside it when broken, as a shulker box does (a
+     * chest spills its contents instead): only such items are really meant to be carried full. Worked out by the server, see
      * {@link #findKeepingContents}, and sent to clients.
      */
     public static boolean keepsContents(Item item)
@@ -144,8 +151,8 @@ public final class ContainerItems
     /**
      * Server side, whenever loot tables (re)load: finds the container items that keep their contents when broken,
      * by breaking each one's block for real (in a block entity of its own, which is then thrown away): with an item
-     * inside, does what it drops still hold it? Items that don't place a block have nothing to spill, so they count.
-     * This follows each block's own loot table, so it covers any mod's blocks, and datapacks that change them.
+     * inside, does what it drops still hold it? Items that don't place a container block don't count, as they use the
+     * component for something of their own (see the class comment). This follows each block's own loot table, so it covers any mod's blocks, and datapacks that change them.
      */
     public static void findKeepingContents(ServerLevel level)
     {
@@ -164,7 +171,7 @@ public final class ContainerItems
     {
         if(!(item instanceof BlockItem blockItem) || !(blockItem.getBlock() instanceof EntityBlock entityBlock))
         {
-            return true;
+            return false;
         }
         try
         {
@@ -200,62 +207,6 @@ public final class ContainerItems
         return lock != null && !lock.equals(LockCode.NO_LOCK);
     }
 
-    private static Whitelist getWhitelist()
-    {
-        List<? extends String> entries = ServerConfig.get(ServerConfig.CONTAINER_ITEM_WHITELIST);
-        Whitelist current = whitelist;
-        if(current == null || current.entries != entries)
-        {
-            current = Whitelist.parse(entries);
-            whitelist = current;
-        }
-        return current;
-    }
-
-    /** The config whitelist: item ids, and item tags given with a leading {@code #}. */
-    private record Whitelist(List<? extends String> entries, Set<ResourceLocation> items, List<TagKey<Item>> tags)
-    {
-        static Whitelist parse(List<? extends String> entries)
-        {
-            Set<ResourceLocation> items = new HashSet<>();
-            List<TagKey<Item>> tags = new ArrayList<>();
-            for(String entry : entries)
-            {
-                boolean tag = entry.startsWith("#");
-                ResourceLocation id = ResourceLocation.tryParse(tag ? entry.substring(1) : entry);
-                if(id == null)
-                {
-                    continue;
-                }
-                if(tag)
-                {
-                    tags.add(TagKey.create(Registries.ITEM, id));
-                }
-                else
-                {
-                    items.add(id);
-                }
-            }
-            return new Whitelist(entries, items, tags);
-        }
-
-        boolean matches(ItemStack stack)
-        {
-            if(this.items.contains(BuiltInRegistries.ITEM.getKey(stack.getItem())))
-            {
-                return true;
-            }
-            for(TagKey<Item> tag : this.tags)
-            {
-                if(stack.is(tag))
-                {
-                    return true;
-                }
-            }
-            return false;
-        }
-    }
-
     /**
      * Server side, once tags are loaded: logs every container item found and whether the band shows it, as they are
      * picked up without being listed anywhere.
@@ -264,7 +215,7 @@ public final class ContainerItems
     {
         List<String> shown = new ArrayList<>();
         List<String> leftOut = new ArrayList<>();
-        boolean whitelistOn = ServerConfig.get(ServerConfig.CONTAINER_ITEM_WHITELIST_ENABLED);
+        boolean whitelistOn = ServerConfig.get(ServerConfig.CONTAINER_ITEM_LIST_IS_WHITELIST);
         int smallest = ServerConfig.get(ServerConfig.IGNORE_CONTAINER_ITEMS_UP_TO_SLOTS);
         for(Item item : BuiltInRegistries.ITEM)
         {
@@ -281,7 +232,9 @@ public final class ContainerItems
             }
             else
             {
-                String reason = whitelistOn ? "not whitelisted" : !keepsContents(item) ? "spills its contents when broken"
+                String reason = whitelistOn ? "not whitelisted" : ITEM_LIST.matches(stack.getItem()) ? "blacklisted in the config"
+                    : !(item instanceof BlockItem blockItem && blockItem.getBlock() instanceof EntityBlock) ? "doesn't place a container block"
+                    : !keepsContents(item) ? "spills its contents when broken"
                     : stack.is(BAND_EXCLUDED) ? BAND_EXCLUDED.location() + " tag" : size <= smallest ? size + " slots" : "not shown";
                 leftOut.add(id + " (" + reason + ")");
             }

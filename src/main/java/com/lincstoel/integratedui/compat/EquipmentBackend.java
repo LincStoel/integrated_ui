@@ -9,6 +9,7 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
 import java.util.function.Consumer;
+import java.util.function.ObjIntConsumer;
 import java.util.function.Predicate;
 
 /**
@@ -21,6 +22,12 @@ public interface EquipmentBackend
 
     /** Both sides: adds exactly {@code sum(group.size)} slots, in order. Positions are assigned later. */
     void addSlots(Player player, List<EquipmentGroup> groups, Consumer<Slot> adder);
+
+    /**
+     * Server side: visits the stack in each slot {@link #addSlots} would add for these groups, with its position among
+     * them (so position {@code i} is the menu's {@code i}th equipment slot). Used to find bundles worn as equipment.
+     */
+    default void forEachStack(Player player, List<EquipmentGroup> groups, ObjIntConsumer<ItemStack> visitor) {}
 
     /** Client side: the name shown when hovering an empty slot of this backend, or null. */
     @Nullable

@@ -7,6 +7,7 @@ import com.lincstoel.integratedui.compat.quark.QuarkBackpackMenu;
 import com.lincstoel.integratedui.compat.quark.QuarkCompat;
 import com.lincstoel.integratedui.config.ServerConfig;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
@@ -23,9 +24,11 @@ import java.util.UUID;
 import java.util.function.Predicate;
 
 /**
- * Server side: everything the band can show, in the order the previous/next buttons step through it. Equipped
- * backpacks come first (in Backpacked's order), then a worn Quark backpack, then the container items (see
- * {@link ContainerItems}) in the player's inventory. Container items are grouped by kind (by block entity type, so
+ * Server side: everything the band can show, in the order the previous/next buttons step through it. What the player
+ * rides comes first, while they ride anything the band can show (see {@link Mounts}), then equipped backpacks (in
+ * Backpacked's order), then a worn Quark backpack, then the container items (see {@link ContainerItems}) in the
+ * player's inventory, and last the Bundles page, while the player carries any bundles
+ * (see {@link BundleInventoryMenu}). Container items are grouped by kind (by block entity type, so
  * shulker boxes come before Supplementaries sacks), then by colour (undyed first, then in dye order) and otherwise
  * in the order they appear in the inventory screen.
  */
@@ -37,12 +40,24 @@ public final class BandTargets
     private static final Map<UUID, ShulkerContainer.Snapshot> LAST_SHULKER_BOX = new HashMap<>();
     /** The players who last looked at their Quark backpack, so reopening the inventory shows it again. */
     private static final Set<UUID> LAST_QUARK_BACKPACK = new HashSet<>();
+    /** The players who last looked at the Bundles page, so it is shown again (also once it is redone for moved bundles). */
+    private static final Set<UUID> LAST_BUNDLES = new HashSet<>();
+    /**
+     * The players who last looked at the Mount page, so it is shown again while they ride. What they looked at before
+     * it is still remembered, for once they dismount.
+     */
+    private static final Set<UUID> LAST_MOUNT = new HashSet<>();
 
     private BandTargets() {}
 
     public static List<BandTarget> collect(ServerPlayer player)
     {
         List<BandTarget> targets = new ArrayList<>();
+        Entity mount = Mounts.findShowable(player);
+        if(mount != null)
+        {
+            targets.add(new BandTarget.Mount(mount));
+        }
         if(IntegratedUI.isBackpackedEnabled())
         {
             for(int index : CompatGuard.get(CompatGuard.BACKPACKED, () -> BackpackedInventoryMenu.getEquippedBackpacks(player), new int[0]))
@@ -54,10 +69,23 @@ public final class BandTargets
         {
             targets.add(new BandTarget.QuarkBackpack());
         }
-        if(!ServerConfig.get(ServerConfig.CONTAINER_ITEMS_IN_BAND))
+        if(ServerConfig.get(ServerConfig.CONTAINER_ITEMS_IN_BAND))
         {
-            return targets;
+            addContainerItems(player, targets);
         }
+        if(ServerConfig.get(ServerConfig.BUNDLES_IN_BAND))
+        {
+            List<Bundles.Found> bundles = Bundles.collect(player);
+            if(!bundles.isEmpty())
+            {
+                targets.add(new BandTarget.BundlePage(bundles));
+            }
+        }
+        return targets;
+    }
+
+    private static void addContainerItems(ServerPlayer player, List<BandTarget> targets)
+    {
         List<BandTarget.ShulkerBox> containerItems = new ArrayList<>();
         Inventory inventory = player.getInventory();
         for(int i = 0; i < ShulkerContainer.INVENTORY_ORDER.length; i++)
@@ -71,7 +99,6 @@ public final class BandTargets
         containerItems.sort(Comparator.comparing(BandTarget.ShulkerBox::group).thenComparingInt(BandTarget.ShulkerBox::colorOrder)
             .thenComparingInt(BandTarget.ShulkerBox::position));
         targets.addAll(containerItems);
-        return targets;
     }
 
     public static int indexOf(List<BandTarget> targets, Predicate<BandTarget> predicate)
@@ -92,6 +119,11 @@ public final class BandTargets
      */
     public static void open(ServerPlayer player, Navigation navigation)
     {
+        open(player, navigation, true);
+    }
+
+    private static void open(ServerPlayer player, Navigation navigation, boolean retry)
+    {
         List<BandTarget> targets = collect(player);
         int current = findCurrent(player, targets);
         int index = current;
@@ -108,6 +140,12 @@ public final class BandTargets
         {
             return;
         }
+        if(index >= 0 && retry && navigation == Navigation.CURRENT && targets.get(index) instanceof BandTarget.Mount)
+        {
+            // The mount could be shown a moment ago, but no longer (it is checked again, see Mounts.findShowable)
+            open(player, navigation, false);
+            return;
+        }
         if(navigation == Navigation.CURRENT)
         {
             IntegratedInventoryMenu.openWithoutBand(player);
@@ -120,11 +158,46 @@ public final class BandTargets
      */
     private static boolean openTarget(ServerPlayer player, BandTarget target)
     {
+        if(target instanceof BandTarget.Mount)
+        {
+            boolean opened = MountInventoryMenu.open(player);
+            if(opened)
+            {
+                LAST_MOUNT.add(player.getUUID());
+            }
+            else
+            {
+                Mounts.forget(player);
+            }
+            return opened;
+        }
+        boolean opened = openOtherTarget(player, target);
+        if(opened)
+        {
+            LAST_MOUNT.remove(player.getUUID());
+        }
+        return opened;
+    }
+
+    private static boolean openOtherTarget(ServerPlayer player, BandTarget target)
+    {
         if(target instanceof BandTarget.ShulkerBox shulkerBox)
         {
             ShulkerInventoryMenu.open(player, shulkerBox.stack());
             LAST_QUARK_BACKPACK.remove(player.getUUID());
+            LAST_BUNDLES.remove(player.getUUID());
             return true;
+        }
+        if(target instanceof BandTarget.BundlePage bundles)
+        {
+            boolean opened = BundleInventoryMenu.open(player, bundles.found());
+            if(opened)
+            {
+                LAST_SHULKER_BOX.remove(player.getUUID());
+                LAST_QUARK_BACKPACK.remove(player.getUUID());
+                LAST_BUNDLES.add(player.getUUID());
+            }
+            return opened;
         }
         boolean quark = target instanceof BandTarget.QuarkBackpack;
         boolean opened = quark ? CompatGuard.test(CompatGuard.QUARK, () -> QuarkBackpackMenu.open(player))
@@ -132,6 +205,7 @@ public final class BandTargets
         if(opened)
         {
             LAST_SHULKER_BOX.remove(player.getUUID());
+            LAST_BUNDLES.remove(player.getUUID());
             if(quark)
             {
                 LAST_QUARK_BACKPACK.add(player.getUUID());
@@ -145,8 +219,8 @@ public final class BandTargets
     }
 
     /**
-     * The target shown in the open menu, else the shulker box or Quark backpack last looked at, else Backpacked's
-     * selected backpack.
+     * The target shown in the open menu, else the Mount page, Bundles page, shulker box or Quark backpack last looked at,
+     * else Backpacked's selected backpack, else the first.
      */
     private static int findCurrent(ServerPlayer player, List<BandTarget> targets)
     {
@@ -157,6 +231,22 @@ public final class BandTargets
         if(player.containerMenu instanceof IntegratedInventoryMenu menu)
         {
             int index = indexOf(targets, menu::isShowing);
+            if(index >= 0)
+            {
+                return index;
+            }
+        }
+        if(LAST_MOUNT.contains(player.getUUID()))
+        {
+            int index = indexOf(targets, target -> target instanceof BandTarget.Mount);
+            if(index >= 0)
+            {
+                return index;
+            }
+        }
+        if(LAST_BUNDLES.contains(player.getUUID()))
+        {
+            int index = indexOf(targets, target -> target instanceof BandTarget.BundlePage);
             if(index >= 0)
             {
                 return index;
@@ -210,17 +300,26 @@ public final class BandTargets
     {
         LAST_SHULKER_BOX.remove(player.getUUID());
         LAST_QUARK_BACKPACK.remove(player.getUUID());
+        LAST_BUNDLES.remove(player.getUUID());
+        LAST_MOUNT.remove(player.getUUID());
+        Mounts.forget(player);
     }
 
     static void forgetAll()
     {
         LAST_SHULKER_BOX.clear();
         LAST_QUARK_BACKPACK.clear();
+        LAST_BUNDLES.clear();
+        LAST_MOUNT.clear();
+        Mounts.forgetAll();
     }
 
     /** Something the band can show. */
     public sealed interface BandTarget
     {
+        /** What the player rides, shown as the Mount page (see {@link MountInventoryMenu}). */
+        record Mount(Entity vehicle) implements BandTarget {}
+
         /** A backpack equipped through Backpacked, by its Backpacked index. */
         record Backpack(int index) implements BandTarget {}
 
@@ -232,5 +331,8 @@ public final class BandTargets
          * is the very stack in the inventory; the other fields only order the list.
          */
         record ShulkerBox(ItemStack stack, String group, int colorOrder, int position) implements BandTarget {}
+
+        /** The Bundles page, with the bundles the player carries (the very stacks), in the order it shows them. */
+        record BundlePage(List<Bundles.Found> found) implements BandTarget {}
     }
 }

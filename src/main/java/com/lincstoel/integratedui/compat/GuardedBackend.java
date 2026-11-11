@@ -3,10 +3,12 @@ package com.lincstoel.integratedui.compat;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.Slot;
+import net.minecraft.world.item.ItemStack;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
 import java.util.function.Consumer;
+import java.util.function.ObjIntConsumer;
 import java.util.function.Predicate;
 
 /**
@@ -35,6 +37,12 @@ final class GuardedBackend implements EquipmentBackend
     public void addSlots(Player player, List<EquipmentGroup> groups, Consumer<Slot> adder)
     {
         CompatGuard.run(this.modId, () -> this.backend.addSlots(player, groups, adder));
+    }
+
+    @Override
+    public void forEachStack(Player player, List<EquipmentGroup> groups, ObjIntConsumer<ItemStack> visitor)
+    {
+        CompatGuard.run(this.modId, () -> this.backend.forEachStack(player, groups, visitor));
     }
 
     @Nullable
